@@ -11,6 +11,7 @@ GOLANGCI_VERSION := v2.12.2
 ACTIONLINT_VERSION := v1.7.12
 RUFF_VERSION := 0.16.9
 MARKDOWNLINT_VERSION := 0.23.3
+GITLEAKS_VERSION := v8.30.1
 
 # `go install` puts tools in $(GOPATH)/bin, which is often not on PATH. Calling
 # a linter bare then fails with the shell's "command not found", which reads as
@@ -18,6 +19,12 @@ MARKDOWNLINT_VERSION := 0.23.3
 # the binary where it actually lives, and say what to do if it is absent.
 GOLANGCI := $(shell command -v golangci-lint 2>/dev/null || command -v $(GOPATH_BIN)/golangci-lint 2>/dev/null)
 ACTIONLINT := $(shell command -v actionlint 2>/dev/null || command -v $(GOPATH_BIN)/actionlint 2>/dev/null)
+GITLEAKS := $(shell command -v gitleaks 2>/dev/null || command -v $(GOPATH_BIN)/gitleaks 2>/dev/null)
+
+# Owner-private files live in the PRIMARY checkout only (worktrees do not get
+# gitignored files), so resolve it from git's common dir.
+PRIMARY := $(shell dirname "$$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null)")
+DENYLIST := $(PRIMARY)/.private/denylist
 
 export GOLANGCI_LINT_CACHE := $(CURDIR)/.golangci-cache
 
@@ -31,7 +38,7 @@ endef
 
 PY_FILES := $(shell git ls-files '*.py' 2>/dev/null)
 
-.PHONY: build test race cover test-gpu fmt vet lint lint-go lint-actions lint-py lint-md install-tools tool-versions clean help
+.PHONY: build test race cover test-gpu fmt vet lint lint-go lint-actions lint-py lint-md lint-secrets lint-private install-tools tool-versions timesheet clean help
 
 build: ## Build the bench binary into bin/
 	CGO_ENABLED=0 go build -trimpath -o $(BIN) ./cmd/bench
@@ -70,7 +77,7 @@ fmt: ## Format Go (gofumpt + goimports) and Python (ruff) sources
 	$(GOLANGCI) fmt ./...
 	@if [ -n "$(PY_FILES)" ]; then uvx ruff@$(RUFF_VERSION) format $(PY_FILES); fi
 
-lint: lint-go lint-actions lint-py lint-md ## Run every linter CI runs
+lint: lint-go lint-actions lint-py lint-md lint-secrets lint-private ## Run every linter (lint-private is local-only)
 
 lint-go: ## golangci-lint, strict suite (see .golangci.yml)
 	$(call REQUIRE,$(GOLANGCI),golangci-lint)
@@ -88,15 +95,34 @@ lint-py: ## ruff check + format check (skipped when the repo has no Python yet)
 lint-md: ## markdownlint on docs, wiki and top-level markdown
 	npx --yes markdownlint-cli2@$(MARKDOWNLINT_VERSION)
 
+lint-secrets: ## gitleaks over the full git history (tokens, keys)
+	$(call REQUIRE,$(GITLEAKS),gitleaks)
+	$(GITLEAKS) git --no-banner --redact .
+
+lint-private: ## Tracked files vs the owner's private denylist (names, LAN addresses); skips where the list is absent (CI)
+	@if [ ! -f "$(DENYLIST)" ]; then echo "lint-private: no $(DENYLIST), skipping"; exit 0; fi; \
+	if git grep -n -I -i -F -f "$(DENYLIST)" -- . ':!raw/'; then \
+		echo "lint-private: tracked content matches the private denylist (above). This repo is public."; exit 1; \
+	else echo "lint-private: clean"; fi
+
 install-tools: ## Install the pinned Go-based linters (honours GOBIN)
 	go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCI_VERSION)
 	go install github.com/rhysd/actionlint/cmd/actionlint@$(ACTIONLINT_VERSION)
+	go install github.com/zricethezav/gitleaks/v8@$(GITLEAKS_VERSION)
 
 tool-versions: ## Print the pinned tool versions
 	@echo "golangci-lint $(GOLANGCI_VERSION)"
 	@echo "actionlint    $(ACTIONLINT_VERSION)"
 	@echo "ruff          $(RUFF_VERSION)"
 	@echo "markdownlint  $(MARKDOWNLINT_VERSION)"
+	@echo "gitleaks      $(GITLEAKS_VERSION)"
+
+# Transcripts of conversations started outside this repo (machine-specific, so
+# kept in the primary checkout's gitignored .env.local as TIMESHEET_ALSO=<globs>).
+TIMESHEET_ALSO ?= $(shell sed -n 's/^TIMESHEET_ALSO=//p' "$(PRIMARY)/.env.local" 2>/dev/null)
+
+timesheet: ## Worklog session table from Claude Code transcripts + commits (GAP=5m; TIMESHEET_ALSO in .env.local)
+	@go run ./cmd/timesheet -gap $(or $(GAP),5m) -also '$(TIMESHEET_ALSO)'
 
 clean: ## Remove build output and the lint cache
 	rm -rf bin .golangci-cache

@@ -45,3 +45,34 @@ owner asks for a PR, which is opened with the `wrbooth` GitHub account
 explicitly (two accounts exist on the machine). Procedure:
 [AGENTS.md](../AGENTS.md), "Git". The bootstrap commits before this entry went
 straight to `main`.
+
+## [2026-09-27] decision | Time counted by session; build order moves to the wiki
+
+The owner works in separate sessions, so one wall-clock span would overstate
+the time spent. [docs/worklog.md](../docs/worklog.md) now records sessions
+(start, end, active time) and the cut list; unattended runs are not counted.
+The remaining build order moved to [project.md](project.md) so it lives in one
+place next to the status table. From here on, wiki log entries give the
+reasoning and link to the worklog for timings instead of repeating them.
+
+## [2026-09-27] decision | Sessions are measured from activity, 5-minute gap
+
+The previous entry's start/stop rows depended on someone saying when work
+stopped. That doesn't hold up when a conversation stays open for hours and the
+owner is interrupted often. `make timesheet`
+([cmd/timesheet](../cmd/timesheet/main.go),
+[internal/timesheet](../internal/timesheet/timesheet.go)) now rebuilds the
+sessions from transcript and commit timestamps. Any silence longer than 5
+minutes ends a session; the owner chose 5 minutes because of the
+interruptions. Found on the first run: the cloud session that did the first
+hour left no local transcript, so that time is a manual entry in
+[docs/worklog.md](../docs/worklog.md) until the owner confirms it.
+
+## [2026-09-27] work | Correction: the first build hour was a local conversation
+
+The previous entry said the first hour ran in a cloud session. That was wrong.
+It ran in a long-lived Claude Code conversation started from another directory
+on the same machine, so its transcript is stored under that directory, not
+this repo's. `make timesheet -also` (set as `TIMESHEET_ALSO` in `.env.local`)
+now reads such transcripts and counts only the records that name this repo;
+see [docs/worklog.md](../docs/worklog.md).

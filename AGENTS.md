@@ -8,6 +8,11 @@ must be able to defend line by line.
 
 `CLAUDE.md` is a symlink to this file: same contract for every harness.
 
+**Owner-private context** (who the exercise is for, what they grade, the
+walkthrough date, honesty lines) is in `~/work/vllm-serve-bench/.private/context.md`,
+excluded from git. Read it at the start of a session; never quote it into a
+tracked file.
+
 Read first: [docs/01-problem-statement.md](docs/01-problem-statement.md) (the
 ask and its constraints), [docs/02-architecture.md](docs/02-architecture.md)
 (the design, metric definitions, experiments), then
@@ -20,7 +25,7 @@ make build          # bin/bench
 make test           # go test ./...
 make race           # go test -race ./...     (CI runs this)
 make cover          # coverage floor on the result-producing packages (CI)
-make lint           # golangci-lint + actionlint + ruff + markdownlint (CI)
+make lint           # golangci-lint, actionlint, ruff, markdownlint, gitleaks, private denylist
 make fmt            # gofumpt + goimports (+ ruff format)
 make install-tools  # pinned golangci-lint + actionlint into GOPATH/bin
 make test-gpu       # `gpu`-tagged tests against a live engine; never in CI
@@ -50,12 +55,19 @@ there. Tool versions are pinned in the Makefile only; CI reads them from there.
   DCGM profiling counters, no tensor parallelism. Anything about TP, NVLink or
   multi-node is labelled design, not result.
 - **The time box is real.** Stretch items stay stretch. When something is cut,
-  say so in `docs/worklog.md`.
+  say so in `docs/worklog.md`. Time is measured, not declared: at the
+  end of a working day, or when asked, paste `make timesheet` output into the
+  worklog's Sessions table without editing it. Time with no local trace goes
+  under Manual entries with the reason, confirmed by the owner.
 - **Suppressions carry a reason.** `//nolint` requires a specific linter and an
   explanation (nolintlint enforces it); a `ruff: noqa` gets a comment too.
 - **This is a public repo.** No LAN addresses, hostnames, tokens, or the names
-  of the company or people the exercise is for. Machine-specific values go in
-  the gitignored `.env.local`.
+  of the company or people the exercise is for, in files, commit messages or
+  PR text. Machine-specific values go in the gitignored `.env.local`. Two
+  checks back this up: `make lint-secrets` (gitleaks, also in CI) and
+  `make lint-private`, which greps tracked files against the owner's private
+  denylist in `.private/` (local only; the list itself is never committed).
+  If you are unsure whether something is publishable, leave it out and ask.
 
 ## Testing standards
 
@@ -123,6 +135,9 @@ cd ../vllm-serve-bench-<slug>
 - Stage explicit paths, never `git add -A` or `git add .`. One logical
   change per commit; the commit log doubles as the time sheet.
 - Run `make lint race cover` before every commit.
+- Gitignored files (`.env.local`, anything machine-specific) exist only in
+  the primary checkout; a new worktree does not get them. Read them from
+  `~/work/vllm-serve-bench/`, never copy them into a worktree.
 
 **Pushing and PRs happen only when the owner asks.** Commit locally in the
 worktree as you go, then stop and report: the branch, the commits, and what
