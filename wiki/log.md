@@ -54,3 +54,16 @@ the time spent. [docs/worklog.md](../docs/worklog.md) now records sessions
 The remaining build order moved to [project.md](project.md) so it lives in one
 place next to the status table. From here on, wiki log entries give the
 reasoning and link to the worklog for timings instead of repeating them.
+
+## [2026-09-27] decision | Sessions are measured from activity, 5-minute gap
+
+The previous entry's start/stop rows depended on someone saying when work
+stopped. That doesn't hold up when a conversation stays open for hours and the
+owner is interrupted often. `make timesheet`
+([cmd/timesheet](../cmd/timesheet/main.go),
+[internal/timesheet](../internal/timesheet/timesheet.go)) now rebuilds the
+sessions from transcript and commit timestamps. Any silence longer than 5
+minutes ends a session; the owner chose 5 minutes because of the
+interruptions. Found on the first run: the cloud session that did the first
+hour left no local transcript, so that time is a manual entry in
+[docs/worklog.md](../docs/worklog.md) until the owner confirms it.

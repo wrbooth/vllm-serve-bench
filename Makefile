@@ -38,7 +38,7 @@ endef
 
 PY_FILES := $(shell git ls-files '*.py' 2>/dev/null)
 
-.PHONY: build test race cover test-gpu fmt vet lint lint-go lint-actions lint-py lint-md lint-secrets lint-private install-tools tool-versions clean help
+.PHONY: build test race cover test-gpu fmt vet lint lint-go lint-actions lint-py lint-md lint-secrets lint-private install-tools tool-versions timesheet clean help
 
 build: ## Build the bench binary into bin/
 	CGO_ENABLED=0 go build -trimpath -o $(BIN) ./cmd/bench
@@ -116,6 +116,9 @@ tool-versions: ## Print the pinned tool versions
 	@echo "ruff          $(RUFF_VERSION)"
 	@echo "markdownlint  $(MARKDOWNLINT_VERSION)"
 	@echo "gitleaks      $(GITLEAKS_VERSION)"
+
+timesheet: ## Worklog session table from Claude Code transcripts + commits (GAP=5m)
+	@go run ./cmd/timesheet -gap $(or $(GAP),5m)
 
 clean: ## Remove build output and the lint cache
 	rm -rf bin .golangci-cache
