@@ -36,3 +36,12 @@ reason) plus actionlint, ruff and markdownlint. Testing standards written into
 [AGENTS.md](../AGENTS.md); the unused-function gate ported as
 `unused_functions_test.go`; coverage floor of 85% on the result-producing
 packages.
+
+## [2026-09-27] decision | Worktrees, and PRs only on request
+
+From here on every change is made in its own git worktree on a typed branch;
+the primary checkout stays on a clean `main`. Commits stay local until the
+owner asks for a PR, which is opened with the `wrbooth` GitHub account
+explicitly (two accounts exist on the machine). Procedure:
+[AGENTS.md](../AGENTS.md), "Git". The bootstrap commits before this entry went
+straight to `main`.

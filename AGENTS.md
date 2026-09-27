@@ -102,9 +102,46 @@ Python (only `scripts/quantize/` so far) follows the house canon in
 
 ## Git
 
-- Work on `main` is fine during the build; CI must be green on every push.
-  Stage explicit paths, never `git add -A` or `git add .`.
-- One logical change per commit; the commit log doubles as the time sheet.
+**Every change happens in a worktree, on a branch.** The primary checkout
+(`~/work/vllm-serve-bench`) stays on a clean `main` and is only ever
+fast-forwarded. Never commit to `main`.
+
+```sh
+git fetch origin
+git worktree add ../vllm-serve-bench-<slug> -b <type>/<slug> origin/main
+cd ../vllm-serve-bench-<slug>
+# ... work, make lint race cover, commit ...
+```
+
+- `<type>` is `feat`, `fix`, `exp` (an experiment run and its write-up),
+  `docs` or `chore`; `<slug>` is short and kebab-case
+  (`feat/sse-client`, `exp/b1-prefix-caching`).
+- One task per worktree. Two parallel tasks get two worktrees, never two
+  branches juggled in one checkout.
+- Each worktree has its own `.golangci-cache/` (the Makefile scopes it to the
+  checkout), so parallel lint runs do not collide.
+- Stage explicit paths, never `git add -A` or `git add .`. One logical
+  change per commit; the commit log doubles as the time sheet.
+- Run `make lint race cover` before every commit.
+
+**Pushing and PRs happen only when the owner asks.** Commit locally in the
+worktree as you go, then stop and report: the branch, the commits, and what
+`make lint race cover` said. When asked to open the PR:
+
+```sh
+git push -u origin <type>/<slug>
+GH_TOKEN=$(gh auth token -u wrbooth) gh pr create --base main --fill
+```
+
+- The owner has two GitHub accounts on this machine. This repo belongs to
+  **`wrbooth`**: always pass `GH_TOKEN=$(gh auth token -u wrbooth)` to `gh`,
+  never rely on the active account, and never run `gh auth switch`. The
+  `origin` remote uses the `wrbooth-gh` SSH alias.
+- Never merge a PR, mark one ready, or push to `main` unless explicitly told
+  to. "Land X" means commit X on its branch.
+- After the owner merges: `git -C ~/work/vllm-serve-bench pull --ff-only`,
+  then `git worktree remove ../vllm-serve-bench-<slug>` and delete the local
+  branch.
 
 ## The wiki
 
