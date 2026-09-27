@@ -1,0 +1,38 @@
+# Log
+
+Append-only, chronological, newest last. Entry format:
+`## [YYYY-MM-DD] <type> | <title>` with type ∈ `ingest`, `query`, `lint`,
+`decision`, `work`. Parseable: `grep "^## \[" wiki/log.md | tail -5`.
+
+## [2026-09-27] decision | Scope and stack
+
+Qwen2.5-7B-Instruct (bf16) on one RTX 5090, served by `vllm/vllm-openai:v0.29.0`
+(pinned). Go load generator with closed-loop concurrency sweeps and 1 Hz engine
+and GPU samplers. Experiments in order: A batching, B1 prefix caching, B2 a
+self-produced FP8 checkpoint (llm-compressor), C FP8 KV cache (stretch). A thin
+proxy in front of vLLM only after the core ask is met; EKS as a second hardware
+point only if time allows. Contract: [docs/02-architecture.md](../docs/02-architecture.md).
+
+## [2026-09-27] decision | B2 produces the quantized checkpoint rather than using vLLM's online FP8
+
+Serving vLLM's `--quantization fp8` exercises quantized inference but produces
+nothing. The owner wants the experiment to cover creating a quantized model:
+choosing the scheme, the ignore list and (for static FP8) the calibration set,
+then validating the output. Online FP8 stays as a first-hour smoke test only.
+
+## [2026-09-27] ingest | LLM wiki pattern (Karpathy)
+
+Bootstrapped `raw/` + `wiki/` with the schema in [AGENTS.md](../AGENTS.md).
+Charter copied from the owner's sibling project, fetch date preserved:
+[raw/2026-09-12-llm-wiki-pattern.md](../raw/2026-09-12-llm-wiki-pattern.md).
+First pages: [project.md](project.md), [gpu-host.md](gpu-host.md),
+[prior-art-5090.md](prior-art-5090.md), [walkthrough-topics.md](walkthrough-topics.md).
+
+## [2026-09-27] work | Repo tooling
+
+Lint canon ported from the owner's Go orchestrator repo (golangci-lint v2
+strict suite, versions pinned once in the Makefile, suppressions must carry a
+reason) plus actionlint, ruff and markdownlint. Testing standards written into
+[AGENTS.md](../AGENTS.md); the unused-function gate ported as
+`unused_functions_test.go`; coverage floor of 85% on the result-producing
+packages.

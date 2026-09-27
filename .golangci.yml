@@ -1,0 +1,103 @@
+# golangci-lint v2 configuration.
+#
+# Adopted from the conductor repo's canon: wide, strict rule selection;
+# formatting enforced, not suggested; suppressions are targeted and explained
+# inline (nolintlint requires a reason), never blanket disables. The version is
+# pinned once, in the Makefile (GOLANGCI_VERSION); CI installs it from there.
+version: "2"
+
+formatters:
+  enable:
+    - gofumpt # stricter superset of gofmt
+    - goimports # deterministic import grouping/ordering
+
+linters:
+  default: standard # errcheck, govet, ineffassign, staticcheck, unused
+  enable:
+    # correctness
+    - bodyclose # the load generator lives on streamed HTTP bodies
+    - contextcheck
+    - copyloopvar
+    - durationcheck
+    - errname
+    - errorlint
+    - nilerr
+    - noctx # every request must carry the run's context/deadline
+    - wastedassign
+    # security
+    - gosec
+    # complexity
+    - gocyclo
+    # style & bug-prone patterns
+    - gocritic
+    - misspell
+    - predeclared
+    - revive
+    - unconvert
+    - unparam
+    - usestdlibvars
+    # performance
+    - perfsprint
+    - prealloc
+    # tests
+    - thelper
+    - tparallel
+    # hygiene of suppressions themselves
+    - nolintlint
+
+  settings:
+    gocyclo:
+      min-complexity: 15
+    gocritic:
+      enabled-tags:
+        - diagnostic
+        - style
+        - performance
+    gosec:
+      excludes:
+        # G204 (subprocess with variable args): the GPU sampler execs
+        # nvidia-smi with a fixed binary and a query string built from
+        # constants plus an operator-set interval. No user input reaches argv.
+        - G204
+        # G304 (file path from variable): results directories and prompt
+        # profiles are paths the operator passes on the command line.
+        - G304
+    nolintlint:
+      require-explanation: true
+      require-specific: true
+    revive:
+      rules:
+        - name: blank-imports
+        - name: context-as-argument
+        - name: context-keys-type
+        - name: dot-imports
+        - name: error-naming
+        - name: error-return
+        - name: error-strings
+        - name: errorf
+        - name: exported # doc comments on exported symbols
+        - name: increment-decrement
+        - name: indent-error-flow
+        - name: package-comments
+        - name: range
+        - name: receiver-naming
+        - name: redefines-builtin-id
+        - name: superfluous-else
+        - name: time-naming
+        - name: unexported-return
+        - name: unreachable-code
+        - name: var-declaration
+        - name: var-naming
+
+  exclusions:
+    rules:
+      # Tests: assertions and fixtures don't need production hardening, and a
+      # table-driven test's length is not a complexity smell.
+      - path: _test\.go
+        linters:
+          - errcheck
+          - gocyclo
+          - gosec
+          - noctx
+          - prealloc
+          - unparam

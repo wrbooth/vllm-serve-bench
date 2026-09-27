@@ -14,7 +14,7 @@ Take-home exercise for an LLM inference / platform role; time-boxed to 4–6 hou
 
 ## Shape
 
-```
+```text
 bench (Go: load generator + 1 Hz vLLM /metrics + 1 Hz nvidia-smi samplers + report)
   └── OpenAI-compatible streaming HTTP ──► vllm/vllm-openai:v0.29.0 (pinned) serving Qwen/Qwen2.5-7B-Instruct
 ```

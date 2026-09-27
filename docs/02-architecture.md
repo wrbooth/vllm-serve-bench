@@ -2,7 +2,7 @@
 
 ## Overview
 
-```
+```text
                  ┌────────────────────────── GPU host (RTX 5090) ──────────────────────────┐
                  │                                                                          │
    bench run ────┼──► ┌──────────────┐  OpenAI-compatible HTTP (streaming)  ┌────────────┐ │
@@ -50,7 +50,7 @@ argv rather than trusting the compose file.
 
 One binary, four subcommands.
 
-```
+```text
 bench run      --profile interactive|throughput --concurrency 1,2,4,8,16 --duration 60s \
                --warmup 10s --base-url http://vllm:8000 --out results/
 bench sample   (internal: 1 Hz vllm /metrics + nvidia-smi samplers, started by `run`)
@@ -128,7 +128,7 @@ they line up with request rows.
 
 ### Run directory
 
-```
+```text
 results/<profile>-<engine-config>-<yyyymmdd-hhmmss>/
   config.json        # profile, concurrency list, seed, engine image digest, engine argv, GPU, driver
   requests.jsonl     # one row per request: concurrency, t_send, ttft_ms, e2e_ms, tpot_ms, tokens, error
@@ -151,7 +151,9 @@ harness is wrong. The comparison is committed as `results/verify/`.
 
 Qwen2.5-7B-Instruct: 28 layers, 4 KV heads (GQA), head dim 128.
 
-    KV bytes/token (bf16) = 2 (K,V) × 28 layers × 4 heads × 128 dim × 2 bytes = 57,344 B ≈ 56 KB
+```text
+KV bytes/token (bf16) = 2 (K,V) × 28 layers × 4 heads × 128 dim × 2 bytes = 57,344 B ≈ 56 KB
+```
 
 | Configuration | Weights | Left for KV at 0.90 util (≈28.8 GB) minus ~1.5 GB activations/graphs | Tokens resident |
 |---|---|---|---|
@@ -227,7 +229,7 @@ The GPU-dependent path (a real vLLM smoke run) is intentionally not in CI; it is
 
 ## Repository layout
 
-```
+```text
 cmd/bench/               main.go, subcommands
 internal/loadgen/        closed-loop runner, worker, request builder
 internal/openai/         streaming client, SSE parser, usage extraction

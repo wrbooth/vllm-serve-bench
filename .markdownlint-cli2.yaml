@@ -1,0 +1,20 @@
+# markdownlint-cli2. This repo is documentation-heavy (docs/, wiki/, the
+# results write-up), so markdown is linted like code, with rules relaxed only
+# where they fight the house style.
+config:
+  default: true
+  MD013: false # line length: prose is wrapped by hand, tables and URLs can't be
+  MD024:
+    siblings_only: true # repeated headings are fine under different parents (worklog days)
+  MD033: false # inline HTML (<br>, <details>) is allowed in tables and slides
+  MD041: false # raw/ sources open with a provenance blockquote, not an H1
+  MD060: false # table column alignment: hand-aligned tables are not required
+
+globs:
+  - "**/*.md"
+
+ignores:
+  - "results/**"
+  - "raw/**" # immutable sources are stored as fetched, never reformatted
+  - ".golangci-cache/**"
+  - "node_modules/**"

@@ -1,0 +1,27 @@
+# ruff configuration for the repo's Python (the quantization scripts under
+# scripts/quantize/, and any analysis helpers). House canon from the sibling
+# repos: wide rule select, format enforced, practical ignores only.
+line-length = 88
+target-version = "py312"
+
+[format]
+indent-style = "space"
+line-ending = "lf"
+quote-style = "double"
+
+[lint]
+select = [
+  "E", "W", "F", "I", "B", "UP", "A", "S", "BLE", "COM", "RET", "SIM", "C4",
+  "RUF", "DTZ", "PT", "ISC", "FBT", "EM", "G", "SLF", "C90", "ERA", "PIE",
+  "FURB", "PERF", "SLOT", "FA", "ASYNC", "RSE", "T20", "PTH",
+]
+# S603/S607: subprocess with operator-set args. COM812: conflicts with the
+# formatter. T201: these are CLI scripts; print is the interface. FBT001-3:
+# boolean CLI flags. E402: late imports after torch env setup.
+ignore = ["S603", "S607", "COM812", "T201", "FBT001", "FBT002", "FBT003", "E402"]
+
+[lint.mccabe]
+max-complexity = 10
+
+[lint.per-file-ignores]
+"tests/**/*.py" = ["S101", "SLF001", "EM101", "E501"]
