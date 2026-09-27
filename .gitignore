@@ -1,0 +1,15 @@
+# binaries
+/bin/
+/bench
+*.exe
+# results scratch (committed runs live in results/<run-id>/; keep tmp out)
+/results/tmp/
+# local env
+.env.local
+deploy/compose/.env.local
+# editor / OS
+.DS_Store
+.idea/
+.vscode/
+# go
+coverage.out
