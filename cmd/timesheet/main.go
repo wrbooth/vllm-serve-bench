@@ -32,6 +32,7 @@ func run() error {
 	}
 	gap := flag.Duration("gap", 5*time.Minute, "silence longer than this ends a session")
 	projects := flag.String("projects", filepath.Join(home, ".claude", "projects"), "Claude Code transcripts root")
+	also := flag.String("also", "", "comma-separated globs of transcripts started elsewhere; only records naming this repo count")
 	flag.Parse()
 
 	ctx := context.Background()
@@ -41,21 +42,27 @@ func run() error {
 	}
 	primary := filepath.Dir(strings.TrimSpace(string(commonDir)))
 
-	var events []time.Time
-	pattern := filepath.Join(*projects, timesheet.ProjectDirName(primary)+"*", "*.jsonl")
-	files, err := filepath.Glob(pattern)
+	own, err := filepath.Glob(filepath.Join(*projects, timesheet.ProjectDirName(primary)+"*", "*.jsonl"))
 	if err != nil {
 		return err
 	}
-	for _, f := range files {
-		ts, skipped, err := transcriptTimes(f)
+	events, err := collect(nil, own, "")
+	if err != nil {
+		return err
+	}
+	var foreign []string
+	for g := range strings.SplitSeq(*also, ",") {
+		if g = strings.TrimSpace(g); g == "" {
+			continue
+		}
+		m, err := filepath.Glob(g)
 		if err != nil {
-			return fmt.Errorf("%s: %w", f, err)
+			return err
 		}
-		if skipped > 0 {
-			fmt.Fprintf(os.Stderr, "timesheet: %s: skipped %d unparseable lines\n", filepath.Base(f), skipped)
-		}
-		events = append(events, ts...)
+		foreign = append(foreign, m...)
+	}
+	if events, err = collect(events, foreign, filepath.Base(primary)); err != nil {
+		return err
 	}
 
 	log, err := git(ctx, "log", "--all", "--format=%aI")
@@ -68,17 +75,34 @@ func run() error {
 	}
 	events = append(events, commits...)
 
-	fmt.Fprintf(os.Stderr, "timesheet: %d transcripts, %d commits, gap %s\n", len(files), len(commits), *gap)
+	fmt.Fprintf(os.Stderr, "timesheet: %d own transcripts, %d others (filtered to %q), %d commits, gap %s\n",
+		len(own), len(foreign), filepath.Base(primary), len(commits), *gap)
 	return timesheet.WriteMarkdown(os.Stdout, timesheet.Sessions(events, *gap), time.Local)
 }
 
-func transcriptTimes(path string) ([]time.Time, int, error) {
+// collect appends the activity times from each transcript; see
+// timesheet.TranscriptTimes for what mention filters.
+func collect(events []time.Time, files []string, mention string) ([]time.Time, error) {
+	for _, f := range files {
+		ts, skipped, err := transcriptTimes(f, mention)
+		if err != nil {
+			return nil, fmt.Errorf("%s: %w", f, err)
+		}
+		if skipped > 0 {
+			fmt.Fprintf(os.Stderr, "timesheet: %s: skipped %d unparseable lines\n", filepath.Base(f), skipped)
+		}
+		events = append(events, ts...)
+	}
+	return events, nil
+}
+
+func transcriptTimes(path, mention string) ([]time.Time, int, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, 0, err
 	}
 	defer f.Close() //nolint:errcheck // read-only file; a close error cannot lose data
-	return timesheet.TranscriptTimes(f)
+	return timesheet.TranscriptTimes(f, mention)
 }
 
 func git(ctx context.Context, args ...string) ([]byte, error) {

@@ -117,8 +117,12 @@ tool-versions: ## Print the pinned tool versions
 	@echo "markdownlint  $(MARKDOWNLINT_VERSION)"
 	@echo "gitleaks      $(GITLEAKS_VERSION)"
 
-timesheet: ## Worklog session table from Claude Code transcripts + commits (GAP=5m)
-	@go run ./cmd/timesheet -gap $(or $(GAP),5m)
+# Transcripts of conversations started outside this repo (machine-specific, so
+# kept in the primary checkout's gitignored .env.local as TIMESHEET_ALSO=<globs>).
+TIMESHEET_ALSO ?= $(shell sed -n 's/^TIMESHEET_ALSO=//p' "$(PRIMARY)/.env.local" 2>/dev/null)
+
+timesheet: ## Worklog session table from Claude Code transcripts + commits (GAP=5m; TIMESHEET_ALSO in .env.local)
+	@go run ./cmd/timesheet -gap $(or $(GAP),5m) -also '$(TIMESHEET_ALSO)'
 
 clean: ## Remove build output and the lint cache
 	rm -rf bin .golangci-cache

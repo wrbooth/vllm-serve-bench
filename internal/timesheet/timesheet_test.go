@@ -103,7 +103,7 @@ func TestTranscriptTimesKeepsTimestampedRecordsAndSkipsBadLines(t *testing.T) {
 		``,
 		`{"type":"user","timestamp":"2026-09-27T23:2`, // half-written tail of a live transcript
 	}, "\n")
-	got, skipped, err := TranscriptTimes(strings.NewReader(in))
+	got, skipped, err := TranscriptTimes(strings.NewReader(in), "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -122,6 +122,26 @@ func TestTranscriptTimesKeepsTimestampedRecordsAndSkipsBadLines(t *testing.T) {
 		if !got[i].Equal(want[i]) {
 			t.Errorf("time %d = %v, want %v", i, got[i], want[i])
 		}
+	}
+}
+
+func TestTranscriptTimesWithMentionKeepsOnlyRecordsNamingTheRepo(t *testing.T) {
+	t.Parallel()
+	in := strings.Join([]string{
+		`{"timestamp":"2026-09-27T15:28:00Z","message":{"content":"other project"}}`,
+		`{"timestamp":"2026-09-27T22:20:00Z","message":{"content":"cd ~/work/vllm-serve-bench"}}`,
+		`{"timestamp":"2026-09-27T22:23:00Z","message":{"content":"thinking, no path"}}`,
+		`{"timestamp":"2026-09-27T22:25:00Z","toolUseResult":{"file":"/x/vllm-serve-bench/Makefile"}}`,
+		`not json and no mention`, // filtered before parsing: not counted as skipped
+	}, "\n")
+	got, skipped, err := TranscriptTimes(strings.NewReader(in), "vllm-serve-bench")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Only the 22:20 and 22:25 records name the repo.
+	want := []time.Time{at(t, "22:20:00"), at(t, "22:25:00")}
+	if skipped != 0 || len(got) != len(want) || !got[0].Equal(want[0]) || !got[1].Equal(want[1]) {
+		t.Fatalf("got %v (skipped %d), want %v (skipped 0)", got, skipped, want)
 	}
 }
 

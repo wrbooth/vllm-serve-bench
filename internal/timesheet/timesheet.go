@@ -12,6 +12,7 @@ package timesheet
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -56,10 +57,20 @@ func Sessions(events []time.Time, gap time.Duration) []Session {
 // changes) are not activity. A line that does not parse is skipped and
 // counted rather than failing the read: the transcript of a live conversation
 // can end in a half-written line.
-func TranscriptTimes(r io.Reader) (times []time.Time, skipped int, err error) {
+//
+// A non-empty mention keeps only records whose raw line contains it. That is
+// for a conversation started from another directory that worked on this repo
+// among other things: a record there counts only if it names this repo (a
+// path, a command, a file it read), so the other work in it is not billed
+// here. It undercounts slightly, since a turn spent thinking without naming
+// the repo is dropped.
+func TranscriptTimes(r io.Reader, mention string) (times []time.Time, skipped int, err error) {
 	sc := bufio.NewScanner(r)
 	sc.Buffer(make([]byte, 0, 1<<20), 64<<20) // tool results can be large lines
 	for sc.Scan() {
+		if mention != "" && !bytes.Contains(sc.Bytes(), []byte(mention)) {
+			continue
+		}
 		var rec struct {
 			Timestamp *time.Time `json:"timestamp"`
 		}

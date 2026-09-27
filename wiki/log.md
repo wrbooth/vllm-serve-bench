@@ -67,3 +67,12 @@ minutes ends a session; the owner chose 5 minutes because of the
 interruptions. Found on the first run: the cloud session that did the first
 hour left no local transcript, so that time is a manual entry in
 [docs/worklog.md](../docs/worklog.md) until the owner confirms it.
+
+## [2026-09-27] work | Correction: the first build hour was a local conversation
+
+The previous entry said the first hour ran in a cloud session. That was wrong.
+It ran in a long-lived Claude Code conversation started from another directory
+on the same machine, so its transcript is stored under that directory, not
+this repo's. `make timesheet -also` (set as `TIMESHEET_ALSO` in `.env.local`)
+now reads such transcripts and counts only the records that name this repo;
+see [docs/worklog.md](../docs/worklog.md).
