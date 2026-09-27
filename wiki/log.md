@@ -128,3 +128,29 @@ because that is vLLM's default `max_num_seqs` on a 32 GB card; above it, the
 scheduler would queue requests rather than preempt them. The 2048-token
 `max_num_batched_tokens` default is noted for Experiment A. Design:
 [docs/02-architecture.md](../docs/02-architecture.md#workload-profiles).
+
+## [2026-09-27] decision | Streaming client: what counts as a measured request
+
+The client ([internal/openai](../internal/openai/client.go)) was built
+against chunk shapes captured from the pinned engine (vLLM 0.29.0, 0.5B
+model), and the fake server ([internal/fakeserver](../internal/fakeserver/fakeserver.go))
+replays the same shapes. Decisions, each pinned by a test:
+
+- **TTFT starts at the first non-empty `delta.content`.** vLLM's first chunk
+  is a role-only delta with `"content":""`; timing it would put TTFT near
+  zero. The fake server sends that chunk immediately and delays the first
+  content chunk, so the loopback tests fail if this regresses.
+- **`t_send` is when the body is fully written** (httptrace `WroteRequest`),
+  as the architecture doc defines it, not when the call starts.
+- **A 200 that is not a complete measurement is an error row:** no
+  `[DONE]`, no usage chunk, or no content token. Token counts come only from
+  the usage chunk (the chat template adds ~30 prompt tokens, so estimating
+  would be wrong), so a stream without one cannot produce TPOT.
+- **Sampling is set explicitly or not at all.** vLLM's defaults come from the
+  model's `generation_config.json` (Qwen2.5: temperature 0.7, top_k 20,
+  repetition_penalty 1.1), not from the OpenAI spec, so the request carries
+  optional pointers and a run that must not depend on the checkpoint sets
+  them.
+- **Idle connections per host raised to 1024.** net/http keeps 2 by default;
+  at concurrency N a closed loop would redial N-2 connections after every
+  request, and the redial lands inside TTFT.
