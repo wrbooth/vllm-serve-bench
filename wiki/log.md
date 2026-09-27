@@ -45,3 +45,12 @@ owner asks for a PR, which is opened with the `wrbooth` GitHub account
 explicitly (two accounts exist on the machine). Procedure:
 [AGENTS.md](../AGENTS.md), "Git". The bootstrap commits before this entry went
 straight to `main`.
+
+## [2026-09-27] decision | Time counted by session; build order moves to the wiki
+
+The owner works in separate sessions, so one wall-clock span would overstate
+the time spent. [docs/worklog.md](../docs/worklog.md) now records sessions
+(start, end, active time) and the cut list; unattended runs are not counted.
+The remaining build order moved to [project.md](project.md) so it lives in one
+place next to the status table. From here on, wiki log entries give the
+reasoning and link to the worklog for timings instead of repeating them.

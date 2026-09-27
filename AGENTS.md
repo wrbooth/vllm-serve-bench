@@ -55,7 +55,10 @@ there. Tool versions are pinned in the Makefile only; CI reads them from there.
   DCGM profiling counters, no tensor parallelism. Anything about TP, NVLink or
   multi-node is labelled design, not result.
 - **The time box is real.** Stretch items stay stretch. When something is cut,
-  say so in `docs/worklog.md`.
+  say so in `docs/worklog.md`. Time is counted by session: when the owner
+  starts or stops working, open or close a row in the worklog's Sessions
+  table. If a conversation resumes after a gap with no closed row, ask when
+  the last session ended; do not guess it from commit times.
 - **Suppressions carry a reason.** `//nolint` requires a specific linter and an
   explanation (nolintlint enforces it); a `ruff: noqa` gets a comment too.
 - **This is a public repo.** No LAN addresses, hostnames, tokens, or the names

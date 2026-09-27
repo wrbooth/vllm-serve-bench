@@ -33,6 +33,27 @@ Slides are drafted 2026-09-29.
 | Proxy in front of vLLM | `deferred` (stretch) | |
 | EKS run as a second hardware point | `deferred` (stretch) | |
 
+## Build order
+
+Remaining work, in order. Time spent is tracked by session in
+[docs/worklog.md](../docs/worklog.md).
+
+1. Compose + CDI engine; first streaming request on the 0.5B model; a
+   five-minute online-FP8 smoke test on the 7B (informs B2, not reported).
+2. Go OpenAI streaming client + SSE parser + fake server + tests; closed-loop
+   runner.
+3. 1 Hz samplers (engine `/metrics`, nvidia-smi); cross-check against
+   `vllm bench serve`.
+4. Baseline sweeps for both profiles (write the README while they run); choose
+   the SLO from the data.
+5. Experiments in order: A batching → B1 prefix caching → B2 llm-compressor
+   FP8 dynamic checkpoint (first check that the HF token has write scope) → C
+   FP8 KV cache if time allows.
+6. Dockerfile + GHCR publish job; Kubernetes manifests + kubeconform in CI.
+
+Stretch, only once the above is done: proxy in front of vLLM; EKS run as a
+second hardware point.
+
 ## Open questions
 
 - Does the pinned vLLM image's FP8 path run on sm_120 (consumer Blackwell)?
