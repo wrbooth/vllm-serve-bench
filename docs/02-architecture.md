@@ -171,13 +171,15 @@ Each is one engine restart with one or two flags changed, the same seeds, and th
 |---|---|---|---|
 | A | `--max-num-seqs`, `--max-num-batched-tokens` (batching / scheduler budget) | Larger batches raise output tok/s until the decode step becomes compute-bound or KV runs out; TPOT and p95 rise with batch size. There is an operating point that meets the SLO at the highest goodput. | Both profiles: tok/s vs concurrency curve, p95 E2E, preemptions |
 | B1 | prefix caching off → on (V1 engine has it on by default; baseline runs with `--no-enable-prefix-caching`) | Skipping the shared ~300-token prefill cuts TTFT roughly by the shared fraction at low concurrency; the effect shrinks at high concurrency where TTFT is queue-dominated. No effect on `throughput`. | `interactive` TTFT; `prefix_cache_hits / queries` confirms the mechanism |
-| B2 | `--quantization fp8` (online, no new checkpoint) | Half the weight bytes: lower TPOT at low concurrency (decode is bandwidth-bound) and ~60% more KV capacity, so `throughput` sustains higher concurrency before preemption and the p99 cliff moves right. Quality: spot-check outputs; cite published deltas; a real rollout gates on evals. | `throughput` plateau height and position; TPOT at c=1; `kv_cache_usage`, preemptions |
+| B2 | Serve an **FP8 checkpoint I produce** with llm-compressor (`scripts/quantize/`, recipe committed, weights pushed to `wrbooth/Qwen2.5-7B-Instruct-FP8-Dynamic`). FP8 dynamic first (no calibration data); FP8 static with ~512 calibration samples as a stretch, compared on the same sweep. | Half the weight bytes: lower TPOT at low concurrency (decode is bandwidth-bound) and ~60% more KV capacity, so `throughput` sustains higher concurrency before preemption and the p99 cliff moves right. Quality: I made the weights, so the check is mine: fixed-prompt output diff vs bf16 committed under `results/quality/`; published deltas cited; a real rollout gates on an eval set. | `throughput` plateau height and position; TPOT at c=1; `kv_cache_usage`, preemptions |
 | C (stretch) | `--kv-cache-dtype fp8` | Doubles KV capacity independent of weights; near-free on Blackwell. | Same as B2, KV side only |
 
 Each experiment is written up as Baseline → Hypothesis → Change → Benchmark → Result → Trade-off,
 and a hypothesis that fails is reported as failed. The order is A, B1, B2, C: the guaranteed
 ones first, the one with the most kernel risk on this card last, with a five-minute FP8 smoke
-test in the first hour so the later decision is informed.
+test (vLLM's online `--quantization fp8` on the bf16 weights, which is *not* the reported B2) in
+the first hour so the later decision is informed. B2 is reported from the checkpoint I produced,
+not from the online path.
 
 ## Deployment
 
