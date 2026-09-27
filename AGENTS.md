@@ -123,6 +123,9 @@ cd ../vllm-serve-bench-<slug>
 - Stage explicit paths, never `git add -A` or `git add .`. One logical
   change per commit; the commit log doubles as the time sheet.
 - Run `make lint race cover` before every commit.
+- Gitignored files (`.env.local`, anything machine-specific) exist only in
+  the primary checkout; a new worktree does not get them. Read them from
+  `~/work/vllm-serve-bench/`, never copy them into a worktree.
 
 **Pushing and PRs happen only when the owner asks.** Commit locally in the
 worktree as you go, then stop and report: the branch, the commits, and what
