@@ -16,5 +16,7 @@ everything in `raw/`.
 
 | `2026-09-27-7b-a-mnbt8192-warm.log` | 7B, Experiment A (`--max-num-batched-tokens 8192`), second (warm) start | baseline flags with 8192 |
 
+| `2026-09-28-7b-b2-fp8-warm.log` | Experiment B2, the self-made FP8 checkpoint, second (warm) start | baseline flags, `/models/Qwen2.5-7B-Instruct-FP8-Dynamic` |
+
 The first three were started with `--model`, before the switch to the
 positional model argument.

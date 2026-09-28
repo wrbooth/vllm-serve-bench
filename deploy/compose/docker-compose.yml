@@ -35,6 +35,8 @@ services:
       VLLM_SERVER_DEV_MODE: ${VLLM_SERVER_DEV_MODE:-1}
     volumes:
       - ${HF_CACHE:?set in .env.local}:/root/.cache/huggingface:ro
+      # Checkpoints made here (B2's FP8 model), served as /models/<name>.
+      - ${MODELS_DIR:?set in .env.local}:/models:ro
       - vllm-cache:/root/.cache/vllm # torch.compile / CUDA graph cache; survives restarts
     shm_size: 8gb
     ports:

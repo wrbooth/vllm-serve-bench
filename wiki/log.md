@@ -664,3 +664,71 @@ costs 6% of KV capacity, which shows up as more preemption at the top. It
 does not move either SLO boundary. For this card and these SLOs the default
 2048 stays; A is reported as a measured null result on goodput, with a real
 effect on TTFT.
+
+## [2026-09-28] decision | Experiment B2: checkpoint made; hypothesis recorded before serving it
+
+[scripts/quantize/quantize.py](../scripts/quantize/quantize.py) produced
+`Qwen2.5-7B-Instruct-FP8-Dynamic` on the 5090, in the GPU distrobox, with
+`llmcompressor` 0.14.0 (pinned in `requirements.txt`).
+
+- **What the scheme does:** every Linear layer's weights become FP8 E4M3 with
+  one static scale per output channel. Activations are FP8, with a scale
+  computed per token at run time, so no calibration set is needed.
+  `lm_head` stays in bf16 and the KV cache is unquantized. The checkpoint's
+  `quantization_config` confirms all of this.
+- **Result of the quantization:** it took 17 s and needed no data. The
+  checkpoint is 8.2 GB against 15 GB, and `provenance.json` records the
+  source snapshot and tool versions.
+- **The engine:** the checkpoint is served as `/models/…` through a
+  read-only mount (`MODELS_DIR` in `.env.local`), with exactly the baseline
+  flags (`engine/b2-fp8.env`). vLLM reads the scheme from the checkpoint.
+
+Hypothesis, recorded before any serving data:
+
+- **Decode is bandwidth-bound at low concurrency.** Halving the weight bytes
+  should cut TPOT at c=1 noticeably, though by less than half, since KV
+  reads, activations and kernel overheads do not shrink.
+- **The KV pool grows.** The online-FP8 smoke test's cold start gave about
+  323k tokens against the baseline's 209k cold (241k warm). I expect a
+  warm pool well above the baseline's.
+- **Throughput:** more KV room and cheaper decode should push the knee to the
+  right. c=128 may come inside E2E p95 ≤ 15 s, and c=192 and 256 should
+  queue less.
+- **Interactive:** the knee sits at the power cap. FP8 GEMMs do less work per
+  token, so tok/s at c=128 and 256 should rise, and c=128 may come inside the
+  TPOT bound.
+- **Quality:** checked separately, on the same fixed prompts, by comparing
+  greedy outputs against the bf16 model.
+- **What would refute it:** no TPOT gain at c=1, or no throughput gain past the
+  baseline knee.
+
+## [2026-09-28] work | Experiment B2 result: large gains; one prediction refuted; quality level with bf16
+
+Data: [results/b2-fp8/](../results/b2-fp8/), compared in docs/03 by
+`bench report` against the baseline. Every level passes the engine check,
+with 0 errors and 0 prompt-token mismatches. The figures below were read off
+the generated tables.
+
+- **Decode speed:** TPOT at c=1 fell from 9.5 to 6.1 ms (−36%), less than
+  half as predicted, since only the weight bytes halve.
+- **KV pool:** warm, it is 354,832 tokens against 241,680 (+47%).
+- **Interactive:** throughput is up 36–58% across the sweep. c=128 now meets
+  the SLO with margin (TTFT p95 87 ms, TPOT p95 18.9 ms), so max compliant
+  goodput goes from 4,140 tok/s at c=64 to 6,898 at c=128 (+66.6%).
+- **Throughput:** up 24–61% per level, but the SLO boundary does not move.
+  c=128's E2E p95 is 18.4 s against 15 s, so that prediction was wrong. Max
+  compliant goodput is 1,584 → 2,380 tok/s at the same c=64 (+50.3%).
+  Queueing TTFT at c=192 falls from 10.1 s to 0.86 s p95.
+- **Trade-off not predicted:** at throughput c=256 the larger pool runs about
+  206 sequences against about 150, so TPOT p95 is 14.7% worse there even
+  though E2E improves.
+- **Quality** ([results/quality/report.md](../results/quality/report.md)):
+  - 28 of 30 exact-answer items correct for both models. The same two missed
+    items were genuine model errors, wrong the same way in both ("deserts",
+    and "Monday" for ten days after Monday).
+  - 0 items changed correctness.
+  - 31 of 40 replies were identical; mean common prefix 0.818.
+  - This is a smoke-level check on a small hand-written set, not an eval.
+- **Not done:** publishing the checkpoint to Hugging Face. It is public and
+  under the owner's account, so it waits for the owner's go-ahead, and the
+  HF token's write scope is still unchecked.

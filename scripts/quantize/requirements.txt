@@ -1,0 +1,4 @@
+# Quantization toolchain for experiment B2, installed into a venv inside the
+# GPU host's distrobox (the host has no Python; wiki/gpu-host.md). Pinned so
+# the recipe reproduces; torch and the rest resolve from these.
+llmcompressor==0.14.0
