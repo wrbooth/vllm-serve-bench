@@ -43,7 +43,11 @@ up)
 	argv
 	;;
 argv) argv ;;
-down) compose down ;;
+down)
+	# Compose interpolates the whole file even to stop it, and MODEL has no
+	# default (a run must name its model). Any placeholder will do for down.
+	MODEL=${MODEL:-unused} compose down
+	;;
 *)
 	sed -n '2,9p' "$0" >&2
 	exit 2
