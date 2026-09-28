@@ -51,19 +51,31 @@ type Engine struct {
 // be counted, instead of being prefilled in one sample and counted in the
 // next. ok is false when the telemetry does not reach both edges.
 func Covering(samples []Sample, start, end time.Time) (from, to Sample, ok bool) {
+	fi, ti, ok := CoveringIndex(len(samples), func(i int) time.Time { return samples[i].At }, start, end)
+	if !ok {
+		return Sample{}, Sample{}, false
+	}
+	return samples[fi], samples[ti], true
+}
+
+// CoveringIndex is Covering over any time-ordered series of n samples,
+// where at(i) is sample i's time: the indexes of the last sample at or
+// before start and the first at or after end. internal/report uses it for
+// the counters this package does not parse (preemptions).
+func CoveringIndex(n int, at func(i int) time.Time, start, end time.Time) (from, to int, ok bool) {
 	fi, ti := -1, -1
-	for i := range samples {
-		if !samples[i].At.After(start) {
+	for i := range n {
+		if !at(i).After(start) {
 			fi = i
 		}
-		if ti < 0 && !samples[i].At.Before(end) {
+		if ti < 0 && !at(i).Before(end) {
 			ti = i
 		}
 	}
 	if fi < 0 || ti < 0 {
-		return Sample{}, Sample{}, false
+		return 0, 0, false
 	}
-	return samples[fi], samples[ti], true
+	return fi, ti, true
 }
 
 // CheckEngine computes the engine-side figures between two samples and
