@@ -9,7 +9,7 @@ Take-home exercise for an LLM inference / platform role; time-boxed to 4–6 hou
 - [Problem statement](docs/01-problem-statement.md): the ask, what "done" means, constraints, non-goals.
 - [Architecture](docs/02-architecture.md): serving layer, the Go bench, metric definitions,
   workload profiles, experiments, deployment, CI, scale-out design.
-- Results: `docs/03-results.md` (generated from `results/` by `bench report`; lands after the first sweep).
+- [Results](docs/03-results.md): the tables are generated from `results/` by `bench report`; experiment write-ups land as the runs do.
 - [Worklog](docs/worklog.md): what was done in the time box and what was cut.
 
 ## Shape

@@ -569,3 +569,34 @@ completion time. TTFT and TPOT stay in the tables as diagnostics.
 - **Caveat:** E2E p95 is dominated by the longer outputs in the 192–320 range.
   The lengths are fixed by seed and request index, so every experiment sees
   the same ones.
+
+## [2026-09-27] work | `bench report` generates docs/03; two goodputs defined
+
+[`bench report`](../cmd/bench/report.go) ([internal/report](../internal/report/))
+now writes [docs/03-results.md](../docs/03-results.md) from committed run
+directories and [docs/slo.json](../docs/slo.json), which holds the two SLO
+decisions above in machine-readable form. The generated text sits between
+marker comments; the prose outside them is hand-written and number-free.
+docs/03 now has the SLO, both baselines and empty experiment sections. A
+test regenerates it from the committed runs and fails on any difference.
+
+- **Goodput is reported two ways** ([docs/02](../docs/02-architecture.md#metric-definitions-client-side-per-request)).
+  The headline is *max compliant goodput*: the highest output tok/s among
+  levels whose p95s are within the SLO, that had no errors and that passed
+  the engine check. *Per-request goodput* counts the tokens of the requests
+  that each met every limit on their own. The headline follows the SLO's
+  own shape, a per-level tail bound. Per-request goodput is shown beside it
+  because it shows how much of a failing level was still useful: at the
+  interactive baseline's first failing level most requests individually
+  miss the TPOT limit, since that level's TPOT p50 is already over it.
+- **Two judgement calls, stated in docs/02:** a value equal to the limit
+  passes (the SLOs are written "≤"), and a level with any error does not
+  meet the SLO. The baseline had no errors, so the second one did not
+  change anything yet.
+- **Generated figures differ slightly from the hand-read ones above.**
+  Preemptions at throughput c=192 and c=256 come out one higher than the
+  baseline entry's hand-read 19 and 31. The counter delta runs between the
+  samples covering the window, up to a second on each side, as the
+  cross-check does. docs/03 is the reference; the log entries stay as
+  written.
+- **Charts cut** for time ([worklog](../docs/worklog.md)).
