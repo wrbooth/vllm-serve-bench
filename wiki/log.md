@@ -176,3 +176,110 @@ float64 (0.28·25 = 7.000000000000001). The test
 
 Not built yet: the `bench run` subcommand, which needs the prompt generator
 and the results-directory writer.
+
+## [2026-09-27] decision | Prompts: a single-token word list, not a tokenizer at run time
+
+The design said to trim generated text to a target length with the
+tokenizer at profile build time. The generator
+([internal/prompts](../internal/prompts/prompts.go)) does without a
+tokenizer entirely:
+
+- **Every word in the list is one token.** Each word in
+  [words.txt](../internal/prompts/words.txt), written with a leading space,
+  is exactly one Qwen2.5 token. Qwen2's pre-tokenizer splits text with a
+  regex before BPE, and a space followed by letters is always its own
+  piece, so words cannot merge with their neighbours. A body of *K* words is
+  *K* tokens.
+- **The rest is a per-profile constant.** The chat template plus the
+  profile's lead text ("Notes:", "Question:", the summarize instruction) is
+  measured once and embedded as
+  [fixed_tokens.json](../internal/prompts/fixed_tokens.json): the engine's
+  count of a reference prompt minus its body words. Each lead ends in ":" so
+  the first body word starts a new piece.
+- **Uniqueness by construction.** Prefix caching is on in the baseline, so
+  a repeated prompt would be served from cache. The first three words of
+  each request's unique part spell its request index in base
+  `len(words)` (at least 10^9 indexes); the index counter runs across the
+  whole run, warmup included. The interactive system prompt is the only
+  shared text, fixed per seed.
+- **Greedy sampling, set explicitly.** Temperature 0 and repetition penalty
+  1.0 are sent with every request. Otherwise vLLM applies the checkpoint's
+  `generation_config.json` (temperature 0.7, top_k 20, repetition penalty
+  1.1). Greedy makes the outputs reproducible for a seed. Decode cost does
+  not depend on which token is picked, and with `ignore_eos` the length is
+  fixed either way. At temperature 0 vLLM ignores top-k and top-p, so they
+  are not sent.
+- **Throughput layout:** the instruction comes first, then the document,
+  as the profile table in the design says ("no shared prefix beyond the
+  instruction line").
+
+The committed candidate list and counts come from an offline pre-screen
+([scripts/wordlist/candidates.py](../scripts/wordlist/candidates.py)): the
+"usa-no-swears" list from the first20hours/google-10000-english repository,
+intersected with the macOS `/usr/share/dict/words` to drop acronyms and brand
+names, minus a short list of words that read badly in word salad. Each word
+was then checked for one token against the model repo's `tokenizer.json`.
+That leaves 5,497 words. Rendering the chat template by hand with that
+tokenizer reproduces the engine's count for the "You are terse." / "Say hi."
+probe (20), and gives fixed counts of 33 (interactive) and 41 (throughput),
+the same across seeds and indexes. None of this has been checked against
+the engine yet. `bench prompts verify --write internal/prompts` on the GPU
+host does that: it prunes any failing words and re-measures the counts from
+the engine's `/tokenize`, and its `source` field says which kind of count a
+run used.
+
+## [2026-09-27] decision | `bench run` and the run directory
+
+`bench run` ([cmd/bench/run.go](../cmd/bench/run.go)) waits until
+`/v1/models` lists the model, then runs the concurrency levels in order.
+Each level gets its own warmup and measured window, and the results go to
+`results/<profile>-<engine-config>-<yyyymmdd-hhmmss>/`. The schema lives in
+[internal/results](../internal/results/results.go), where `bench report`
+will read it too. That package is new; the design's layout now lists it.
+
+- **The engine's identity is required, not optional.** `--engine-config`,
+  `--engine-argv` (from `deploy/compose/engine.sh argv`) and
+  `--engine-image` are mandatory and recorded verbatim. A run without the
+  engine's actual argv could not be defended. An image that is not pinned
+  by digest is allowed, but it adds a warning.
+- **config.json is written twice.** The first write happens when the
+  directory is created, so an interrupted run still says what it was. The
+  second happens at the end, with `complete`, `finished_at` and the
+  prompt-token check. requests.jsonl and summary.json are updated after
+  every level, so an interrupted sweep keeps its finished levels.
+- **The prompt-token check is a warning, not a failure.** Every successful
+  request's `prompt_tokens` is compared with the generator's prediction.
+  Mismatches are counted by observed value in `prompt_token_check`, listed
+  under `warnings`, and printed. A run with no successful request gets a
+  warning too, because its prediction was never checked.
+- **No run directory unless the engine was ready.** A readiness timeout
+  leaves nothing behind. An existing run directory is never reused (raw
+  results are never overwritten). The run id uses UTC.
+- **Nulls, not zeros.** An error row's latencies are `null` in
+  requests.jsonl, so a reader cannot average a failure in as a
+  zero-latency success. Durations are float milliseconds, exact to the
+  nanosecond.
+- **Room for the samplers.** `engine.facts` (KV pool tokens, resolved
+  scheduler limits, prefix caching) and `host` (GPU name, driver, memory)
+  are optional fields in config.json. They stay empty until the
+  `internal/sampler` branch is wired in.
+- **Per-request timeout defaults to 5 minutes.** A request that takes
+  longer becomes an error row.
+
+The end-to-end test runs `bench run` against the fake server at two levels.
+It checks that the three files parse and agree with each other and with the
+server's request count, and that no prompt was sent twice
+(`TestRunWritesAConsistentRunDirectory`).
+
+## [2026-09-27] work | Prompt word list verified on the engine; first real bench run
+
+`bench prompts verify` against the pinned 7B engine found all 5,497 words to
+be single tokens. It confirmed the fixed counts (33 interactive, 41
+throughput) with 0 mismatches over 40 sample prompts. `--write` re-measured
+them on the engine; only the provenance lines changed. A
+smoke `bench run` (interactive, c=1 and c=4, 20 s, results not kept) finished
+with 0 errors, 0 of 80 prompt-token mismatches, and the full engine argv and
+image digest in `config.json`. At c=4 the closed-loop workers ran in lockstep
+(fixed output length with `ignore_eos`), so each cycle's prompts arrive
+together and TTFT includes a batched prefill. That is real behaviour of this
+load model, worth remembering when reading the interactive TTFT curve.

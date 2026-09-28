@@ -50,11 +50,12 @@ argv rather than trusting the compose file.
 
 ## Bench (Go)
 
-One binary, four subcommands.
+One binary, five subcommands.
 
 ```text
 bench run      --profile interactive|throughput --concurrency 1,2,4,8,16 --duration 60s \
                --warmup 10s --base-url http://vllm:8000 --out results/
+bench prompts verify --base-url ... [--write internal/prompts]   (word list + prompt-token check)
 bench sample   (internal: 1 Hz vllm /metrics + nvidia-smi samplers, started by `run`)
 bench report   --runs results/... --out docs/03-results.md   (tables, deltas, SVG charts)
 bench verify   --against vllm-bench.json                      (cross-check numbers, see below)
@@ -94,10 +95,17 @@ deadline is a row with `error` set and is reported as a failure rate per concurr
 ### Prompt generation
 
 Prompts are generated, not downloaded, so a run is reproducible from a seed. Each profile defines
-a target input length in tokens and a fixed output length. Input text is assembled from a fixed
-word list with a seeded PRNG, then trimmed to the target using the model's tokenizer *once*, at
-profile build time, and the token count is verified against the server's `prompt_tokens` in the
-results. Output length is fixed with `max_tokens` plus vLLM's `ignore_eos: true`, the standard way
+an input length in words and a fixed output length. Input text is assembled from a fixed word list
+with a seeded PRNG. Every word in the list, written with a leading space, is exactly one token for
+Qwen2.5, and Qwen2's pre-tokenizer never merges a space-led word with its neighbours, so a body of
+*K* words is exactly *K* tokens. What the chat template and the profile's fixed lead text add is a
+per-profile constant, measured once against the engine. So the prompt-token count of every request
+is known in advance, with no tokenizer at run time: `bench prompts verify` checks the list and the
+constants against the engine's `/tokenize`, and every run compares the prediction with the
+server's `prompt_tokens` and records any mismatch in `config.json`. The engine runs with prefix
+caching on, so no prompt text is ever reused within a run: the first words of each request's
+unique part spell its request index. Sampling is greedy (temperature 0, repetition penalty 1),
+set explicitly so the run does not depend on the checkpoint's `generation_config.json`. Output length is fixed with `max_tokens` plus vLLM's `ignore_eos: true`, the standard way
 to hold decode length constant in a benchmark; a `--natural-stop` flag turns it off for a realism
 run, and the write-up reports which mode each table used.
 
@@ -106,7 +114,7 @@ run, and the write-up reports which mode each table used.
 | Profile | Shape | Prompt layout | Concurrency sweep |
 |---|---|---|---|
 | **interactive** | chat-like; latency-sensitive | ~300-token shared system prompt + ~100-token unique user turn → 128 output tokens | 1, 2, 4, 8, 16, 32 |
-| **throughput** | batch summarization / extraction; throughput-sensitive | ~1,500-token unique document + short instruction → 256 output tokens | 8, 16, 32, 64, 128, 192, 256 |
+| **throughput** | batch summarization / extraction; throughput-sensitive | short instruction + ~1,500-token unique document → 256 output tokens | 8, 16, 32, 64, 128, 192, 256 |
 
 The shared prefix in `interactive` is deliberate: it is what production chat traffic looks like
 and it is the workload that prefix caching acts on. The `throughput` profile has no shared prefix
@@ -240,11 +248,13 @@ The GPU-dependent path (a real vLLM smoke run) is intentionally not in CI; it is
 cmd/bench/               main.go, subcommands
 internal/loadgen/        closed-loop runner, worker, request builder
 internal/openai/         streaming client, SSE parser, usage extraction
-internal/prompts/        seeded generator, profiles
+internal/prompts/        seeded generator, profiles, single-token word list, prompt-token check
+internal/results/        run directory schema and writer (config.json, requests.jsonl, summary.json)
 internal/metrics/        per-request records, percentiles, summaries
 internal/sampler/        vllm /metrics scraper, nvidia-smi sampler
 internal/report/         markdown tables, SVG charts, deltas
 internal/fakeserver/     OpenAI-compatible fake for tests
+scripts/wordlist/        offline pre-screen for the prompt word list
 deploy/compose/          docker-compose.yml, engine/*.env, prometheus/, grafana/
 deploy/k8s/              manifests
 results/                 committed raw runs

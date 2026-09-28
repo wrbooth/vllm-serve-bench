@@ -1,0 +1,8 @@
+{
+  "model": "Qwen/Qwen2.5-7B-Instruct",
+  "source": "measured with bench prompts verify --write (bench dev) against the engine's /tokenize on 2026-09-28",
+  "profiles": {
+    "interactive": 33,
+    "throughput": 41
+  }
+}

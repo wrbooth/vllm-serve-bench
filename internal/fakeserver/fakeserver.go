@@ -5,6 +5,11 @@
 // choices, then [DONE]) with configurable timing and failure modes, so the
 // client and load generator can be tested on loopback without a GPU.
 //
+// It also serves GET /v1/models (readiness) and vLLM's POST /tokenize with a
+// toy tokenizer: one token per whitespace-separated field, except the words
+// in MultiToken, plus ChatOverhead for a chat. That is enough to test the
+// prompt checks without the real tokenizer.
+//
 // Use it with httptest: srv := &fakeserver.Server{...};
 // ts := httptest.NewServer(srv).
 package fakeserver
@@ -13,6 +18,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 )
@@ -46,21 +53,76 @@ type Server struct {
 	// the client sees events split across reads over real TCP.
 	SplitWrites bool
 
+	// Models is what GET /v1/models lists; empty means ["fake"].
+	Models []string
+	// UnreadyFor answers the first UnreadyFor requests to /v1/models with
+	// 503, like an engine that is still loading.
+	UnreadyFor int
+
+	// ChatOverhead is what the toy tokenizer adds to a chat (the template).
+	ChatOverhead int
+	// DefaultSystem is counted into a chat that has no system message, as
+	// Qwen's template inserts its own.
+	DefaultSystem string
+	// MultiToken maps words that the toy tokenizer counts as more than one
+	// token to their count.
+	MultiToken map[string]int
+	// CountPrompt reports usage.prompt_tokens as the toy tokenizer's count
+	// of the request's messages instead of PromptTokens.
+	CountPrompt bool
+
 	requests    atomic.Int64
 	inFlight    atomic.Int64
 	maxInFlight atomic.Int64
+	modelsCalls atomic.Int64
+
+	mu       sync.Mutex
+	seen     map[string]bool // chat message sets received, to spot repeats
+	repeated int
 }
 
-// Requests returns the number of requests received so far.
+// RepeatedPrompts returns how many chat requests carried exactly the same
+// messages as an earlier one. With prefix caching on, a repeat would be
+// served from the engine's cache, so a benchmark must send none.
+func (s *Server) RepeatedPrompts() int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.repeated
+}
+
+func (s *Server) notePrompt(msgs []message) {
+	var b strings.Builder
+	for i := range msgs {
+		b.WriteString(msgs[i].Role + "\x00" + msgs[i].Content + "\x00")
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.seen == nil {
+		s.seen = map[string]bool{}
+	}
+	if s.seen[b.String()] {
+		s.repeated++
+	}
+	s.seen[b.String()] = true
+}
+
+// Requests returns the number of chat requests received so far (every
+// request except those to /v1/models and /tokenize).
 func (s *Server) Requests() int { return int(s.requests.Load()) }
 
 // MaxInFlight returns the highest number of requests served concurrently.
 func (s *Server) MaxInFlight() int { return int(s.maxInFlight.Load()) }
 
+type message struct {
+	Role    string `json:"role"`
+	Content string `json:"content"`
+}
+
 type request struct {
-	Model         string `json:"model"`
-	MaxTokens     int    `json:"max_tokens"`
-	Stream        bool   `json:"stream"`
+	Model         string    `json:"model"`
+	Messages      []message `json:"messages"`
+	MaxTokens     int       `json:"max_tokens"`
+	Stream        bool      `json:"stream"`
 	StreamOptions struct {
 		IncludeUsage bool `json:"include_usage"`
 	} `json:"stream_options"`
@@ -68,6 +130,20 @@ type request struct {
 
 // ServeHTTP implements http.Handler.
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	switch {
+	case r.Method == http.MethodGet && r.URL.Path == "/v1/models":
+		s.models(w)
+		return
+	case r.Method == http.MethodPost && r.URL.Path == "/tokenize":
+		s.tokenize(w, r)
+		return
+	}
+	s.chat(w, r)
+}
+
+// chat serves every request that is not /v1/models or /tokenize, so a
+// request to a wrong path is counted and answered 404.
+func (s *Server) chat(w http.ResponseWriter, r *http.Request) {
 	n := s.requests.Add(1)
 	cur := s.inFlight.Add(1)
 	defer s.inFlight.Add(-1)
@@ -87,6 +163,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "bad json: "+err.Error())
 		return
 	}
+	s.notePrompt(req.Messages)
 	switch {
 	case !req.Stream:
 		writeError(w, http.StatusBadRequest, "fakeserver only streams")
@@ -149,11 +226,84 @@ func (s *Server) stream(w http.ResponseWriter, r *http.Request, req *request) {
 		send(chunkJSON(req.Model, `{"content":"tok"}`, finish))
 	}
 	if req.StreamOptions.IncludeUsage {
+		prompt := s.PromptTokens
+		if s.CountPrompt {
+			prompt = s.countChat(req.Messages)
+		}
 		send(fmt.Sprintf(`{"id":"chatcmpl-fake","object":"chat.completion.chunk","created":0,"model":%q,`+
 			`"choices":[],"usage":{"prompt_tokens":%d,"total_tokens":%d,"completion_tokens":%d}}`,
-			req.Model, s.PromptTokens, s.PromptTokens+tokens, tokens))
+			req.Model, prompt, prompt+tokens, tokens))
 	}
 	send("[DONE]")
+}
+
+func (s *Server) models(w http.ResponseWriter) {
+	if s.modelsCalls.Add(1) <= int64(s.UnreadyFor) {
+		writeError(w, http.StatusServiceUnavailable, "engine loading")
+		return
+	}
+	ids := s.Models
+	if len(ids) == 0 {
+		ids = []string{"fake"}
+	}
+	data := make([]map[string]any, len(ids))
+	for i, id := range ids {
+		data[i] = map[string]any{"id": id, "object": "model", "owned_by": "fakeserver"}
+	}
+	writeJSON(w, map[string]any{"object": "list", "data": data})
+}
+
+// tokenizeRequest is vLLM's /tokenize body: a prompt or chat messages.
+type tokenizeRequest struct {
+	Prompt   *string   `json:"prompt"`
+	Messages []message `json:"messages"`
+}
+
+func (s *Server) tokenize(w http.ResponseWriter, r *http.Request) {
+	var req tokenizeRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "bad json: "+err.Error())
+		return
+	}
+	var n int
+	switch {
+	case req.Prompt != nil && req.Messages == nil:
+		n = s.countText(*req.Prompt)
+	case req.Prompt == nil && req.Messages != nil:
+		n = s.countChat(req.Messages)
+	default:
+		writeError(w, http.StatusBadRequest, "set exactly one of prompt and messages")
+		return
+	}
+	writeJSON(w, map[string]any{"count": n, "max_model_len": 8192, "tokens": make([]int, n), "token_strs": nil})
+}
+
+func (s *Server) countText(text string) int {
+	n := 0
+	for _, word := range strings.Fields(text) {
+		if k, ok := s.MultiToken[word]; ok {
+			n += k
+		} else {
+			n++
+		}
+	}
+	return n
+}
+
+func (s *Server) countChat(msgs []message) int {
+	n := s.ChatOverhead
+	if len(msgs) == 0 || msgs[0].Role != "system" {
+		n += s.countText(s.DefaultSystem)
+	}
+	for i := range msgs {
+		n += s.countText(msgs[i].Content)
+	}
+	return n
+}
+
+func writeJSON(w http.ResponseWriter, v any) {
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(v)
 }
 
 func chunkJSON(model, delta, finish string) string {
