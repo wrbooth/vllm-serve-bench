@@ -25,6 +25,14 @@ services:
       - nvidia.com/gpu=all
     environment:
       HF_HUB_OFFLINE: "1" # weights come from the host cache only; never a surprise download mid-run
+      # Registers vLLM's dev endpoints, of which the bench uses one:
+      # POST /reset_prefix_cache before every level, so no prompt from an
+      # earlier run is served from cache. vLLM's own sweep tool
+      # (vllm/benchmarks/sweep/server.py) runs its server the same way. In
+      # v0.29 the flag does nothing else except log stack traces on errors,
+      # and it is excluded from the compile-cache hash (envs.py).
+      # Localhost-only port.
+      VLLM_SERVER_DEV_MODE: ${VLLM_SERVER_DEV_MODE:-1}
     volumes:
       - ${HF_CACHE:?set in .env.local}:/root/.cache/huggingface:ro
       - vllm-cache:/root/.cache/vllm # torch.compile / CUDA graph cache; survives restarts

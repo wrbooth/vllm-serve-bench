@@ -71,6 +71,13 @@ type Server struct {
 	// 404, like a server without a metrics endpoint.
 	Metrics string
 
+	// NoDevMode answers POST /reset_prefix_cache with 404, like an engine
+	// started without VLLM_SERVER_DEV_MODE=1.
+	NoDevMode bool
+	// ResetRefusals answers the first ResetRefusals resets with
+	// {"success": false}, like an engine whose blocks are still held.
+	ResetRefusals int
+
 	// CountPrompt reports usage.prompt_tokens as the toy tokenizer's count
 	// of the request's messages instead of PromptTokens.
 	CountPrompt bool
@@ -79,6 +86,8 @@ type Server struct {
 	inFlight    atomic.Int64
 	maxInFlight atomic.Int64
 	modelsCalls atomic.Int64
+	resetCalls  atomic.Int64
+	resets      atomic.Int64
 
 	mu       sync.Mutex
 	seen     map[string]bool // chat message sets received, to spot repeats
@@ -114,6 +123,9 @@ func (s *Server) notePrompt(msgs []message) {
 // request except those to /v1/models and /tokenize).
 func (s *Server) Requests() int { return int(s.requests.Load()) }
 
+// Resets is how many prefix-cache resets succeeded.
+func (s *Server) Resets() int { return int(s.resets.Load()) }
+
 // MaxInFlight returns the highest number of requests served concurrently.
 func (s *Server) MaxInFlight() int { return int(s.maxInFlight.Load()) }
 
@@ -141,6 +153,18 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case r.Method == http.MethodPost && r.URL.Path == "/tokenize":
 		s.tokenize(w, r)
 		return
+	case r.Method == http.MethodPost && r.URL.Path == "/reset_prefix_cache":
+		if s.NoDevMode {
+			http.NotFound(w, r)
+			return
+		}
+		ok := s.resetCalls.Add(1) > int64(s.ResetRefusals)
+		if ok {
+			s.resets.Add(1)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]bool{"success": ok})
+		return
 	case r.Method == http.MethodGet && r.URL.Path == "/metrics":
 		if s.Metrics == "" {
 			http.NotFound(w, r)
@@ -152,7 +176,8 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	s.chat(w, r)
 }
 
-// chat serves every request that is not /v1/models, /tokenize or /metrics, so a
+// chat serves every request that is not /v1/models, /tokenize, /metrics or
+// /reset_prefix_cache, so a
 // request to a wrong path is counted and answered 404.
 func (s *Server) chat(w http.ResponseWriter, r *http.Request) {
 	n := s.requests.Add(1)

@@ -321,3 +321,108 @@ window is on record. `config.json` gains `engine.facts` and `host`:
 A fact that cannot be read is a warning, never a silent gap. Live on the 5090
 (interactive, c=1 and c=4, not kept): 0 warnings, 42 telemetry rows per file,
 and the facts matched the startup log.
+
+## [2026-09-27] work | Cross-check: the clients agree; TTFT at fixed concurrency is phase-dependent
+
+[scripts/cross-check.sh](../scripts/cross-check.sh) ran ours → `vllm bench
+serve` → ours on the interactive profile at c=8. Raw data:
+[results/verify/20260927-interactive-c8-fixed-output/](../results/verify/20260927-interactive-c8-fixed-output/).
+Input lengths matched (433 vs 429 prompt tokens).
+
+- **Agree within a few percent:** RPS, output tok/s, TPOT p50 and p99, E2E
+  p99, and TTFT p99. For example, TPOT p50 was 9.68 and 9.69 ms (ours) vs
+  9.66 ms (vLLM).
+- **Median TTFT disagrees, including between our own two runs:** 46.4 and
+  28.8 ms (ours) vs 65.8 ms (vLLM). The per-request TTFTs are not spread out.
+  They cluster at the same few values in all three runs (about 29, 46 and
+  66 ms), and each run lands in a different mix of them.
+
+Reading: with a fixed output length and a closed loop, the workers finish in
+lockstep, so arrivals line up with the engine's steps in a few discrete
+patterns. Which pattern a 60 s window settles into decides the median TTFT.
+The drift between our own two runs is as large as the gap to vLLM's client,
+and both clients measure the same clusters. So this is a property of the load
+model, not a harness error. The exact scheduling mechanism behind each
+cluster was not investigated.
+
+Consequence: the harness passes the cross-check on everything except median
+TTFT, and median TTFT is not a stable metric under this load model as it
+stands. A fix is needed before the baseline sweep (owner decision, pending).
+
+## [2026-09-27] work | Correction: the cross-check's TTFT clusters were cache hits, not lockstep
+
+The "Cross-check" entry above blamed the lockstep of fixed-length requests
+for median TTFT drifting 38% between two identical runs. That diagnosis was
+wrong. The per-second prefix-cache counters in the committed telemetry
+show what happened. The bench reuses its prompts across runs (same seed,
+request index restarting at 0), and the warm engine's prefix cache still
+held them from earlier runs:
+
+- run (b) replayed (a)'s prompts and prefilled about 1 uncached token per
+  request, all the way through;
+- run (a) was fully cached for its first ~14 s (indexes already sent by the
+  smoke runs), then uncached at 113 tokens per request;
+- vLLM's client was uncached throughout.
+
+The ~29 ms cluster was the cached requests. The same contamination hit the
+second round, in which ours prefilled ~1.5 uncached tokens per request
+against vLLM's 106.
+
+Lockstep is still real, but the evidence for it is vLLM's own client, which
+was uncached in both rounds: median TTFT 65.8 ms with a fixed 128-token
+output and 31.7 ms with 96–160. So the output-length spread stays.
+
+Fix: `bench run` resets the prefix cache before every level (commit
+`e5aa969`). A `bench run` is refused if the engine cannot reset, unless
+`--reset-prefix-cache=false`, which leaves a warning. The lesson: the samplers
+caught this, and the client-side numbers alone never would have. Engine
+counters are the check on the load generator.
+
+## [2026-09-27] decision | Dev mode has no measurable cost
+
+`/reset_prefix_cache` exists only with `VLLM_SERVER_DEV_MODE=1`. In the pinned
+v0.29 source the flag registers the dev routes and defaults
+`log_error_stack` to true; nothing else reads it, and `envs.py` excludes it
+from the compile-cache hash. vLLM's own sweep tool sets it for the same
+reset.
+
+Checked anyway: two fresh engine starts, dev mode off then on, the same
+prompts (seed 101, never used before), and c=8 for 30 s
+([results/checks/20260927-dev-mode/](../results/checks/20260927-dev-mode/)).
+KV pool, RPS, output tok/s and TPOT p50 were identical, and TTFT p50 was
+31.6 vs 31.7 ms. Both prefilled 113 uncached tokens per request, which
+confirms that a fresh cache behaves as designed. Compose sets it by default.
+
+## [2026-09-27] work | Cross-check passes
+
+Rerun with both clients starting from an emptied prefix cache and output
+lengths drawn from 96–160 on both sides
+([results/verify/20260927-interactive-c8-varied-output/](../results/verify/20260927-interactive-c8-varied-output/)).
+Telemetry confirms both were uncached: 113 unique tokens prefilled per
+request for ours and 106 for vLLM's, whose lead text is shorter.
+
+| | ours (a) | ours (b) | vLLM |
+|---|---|---|---|
+| TTFT p50 / p95 | 31.7 / 36.6 ms | 31.7 / 36.7 ms | 31.83 / 36.46 ms |
+| TPOT p50 | 9.78 ms | 9.79 ms | 9.80 ms |
+| E2E p99 | 1,590 ms | 1,588 ms | 1,587 ms |
+| RPS | 6.317 | 6.317 | 6.171 |
+
+Our two runs are the same prompts on the same reset cache, and their
+throughput is identical. The remaining differences are accounted for:
+
+- **TTFT p99** (ours 40.5 and 38.3 ms, vLLM 67.8 ms): vLLM's only high TTFTs
+  are its requests 1–7, the start burst when all 8 workers send at once.
+  Seven of 400 is enough to set its p99. Without those 8 requests vLLM's
+  TTFT is p50/p95/p99 31.8/35.7/37.0 ms. Our warmup absorbs the burst
+  before the window opens.
+- **RPS** (2.4% overall, 1.6% in vLLM's steady-state middle): vLLM's client
+  drew a longer mean output, 129.21 vs our 127.47 tokens (1.4%).
+  TTFT + output × TPOT predicts a 1.6% longer E2E, which is the whole gap.
+  The rest of the 2.4% is vLLM dividing by its full duration, ramp-up and
+  drain included.
+
+The harness agrees with `vllm bench serve` to within 0.5% on median and p95
+TTFT and TPOT, and every other difference has a measured cause. The
+comparison figures here were computed from the committed files. A
+`bench verify` command that generates them, per docs/02, is still to do.

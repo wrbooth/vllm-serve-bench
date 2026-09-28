@@ -95,20 +95,24 @@ func newDist(d metrics.Dist) Dist {
 // Level is one concurrency level's entry in summary.json: the window it
 // ran in and the aggregates of its measured records.
 type Level struct {
-	Concurrency     int       `json:"concurrency"`
-	Start           time.Time `json:"start"`
-	MeasureStart    time.Time `json:"measure_start"`
-	End             time.Time `json:"end"`
-	WarmupRequests  int       `json:"warmup_requests"`
-	Requests        int       `json:"requests"` // measured rows, errors included
-	Errors          int       `json:"errors"`
-	ErrorRate       float64   `json:"error_rate"`
-	WindowS         float64   `json:"window_s"`
-	RPS             float64   `json:"rps"`
-	OutputTokPerSec float64   `json:"output_tok_per_s"`
-	TTFT            Dist      `json:"ttft"`
-	E2E             Dist      `json:"e2e"`
-	TPOT            Dist      `json:"tpot"`
+	Concurrency int `json:"concurrency"`
+	// PrefixCacheReset is whether the engine's prefix cache was emptied
+	// before this level's warmup, so no prompt from an earlier level or run
+	// could be served from it.
+	PrefixCacheReset bool      `json:"prefix_cache_reset"`
+	Start            time.Time `json:"start"`
+	MeasureStart     time.Time `json:"measure_start"`
+	End              time.Time `json:"end"`
+	WarmupRequests   int       `json:"warmup_requests"`
+	Requests         int       `json:"requests"` // measured rows, errors included
+	Errors           int       `json:"errors"`
+	ErrorRate        float64   `json:"error_rate"`
+	WindowS          float64   `json:"window_s"`
+	RPS              float64   `json:"rps"`
+	OutputTokPerSec  float64   `json:"output_tok_per_s"`
+	TTFT             Dist      `json:"ttft"`
+	E2E              Dist      `json:"e2e"`
+	TPOT             Dist      `json:"tpot"`
 }
 
 // NewLevel summarises one loadgen run at the given concurrency.

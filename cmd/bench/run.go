@@ -30,6 +30,7 @@ type runFlags struct {
 	naturalStop                               bool
 	sampleInterval                            time.Duration
 	gpuSampler                                bool
+	resetCache                                bool
 }
 
 func (f *runFlags) register(fs *flag.FlagSet) {
@@ -49,6 +50,9 @@ func (f *runFlags) register(fs *flag.FlagSet) {
 	fs.BoolVar(&f.naturalStop, "natural-stop", false, "let requests stop at EOS (ignore_eos off); output length then varies")
 	fs.DurationVar(&f.sampleInterval, "sample-interval", time.Second, "engine and GPU telemetry interval for the whole sweep; 0 turns the samplers off")
 	fs.BoolVar(&f.gpuSampler, "gpu-sampler", true, "sample nvidia-smi (off where there is no GPU, e.g. tests)")
+	fs.BoolVar(&f.resetCache, "reset-prefix-cache", true,
+		"empty the engine's prefix cache before each level (needs VLLM_SERVER_DEV_MODE=1); "+
+			"off only for an engine that cannot, and then the run carries a warning")
 }
 
 // check validates the flags and returns the concurrency levels.
@@ -205,6 +209,7 @@ func run(ctx context.Context, f *runFlags, levels []int, cfg *results.Config, st
 
 func profileConfig(g *prompts.Generator, v *prompts.Vocab, naturalStop bool) results.ProfileConfig {
 	p := g.Profile()
+	lo, hi := p.OutputBounds()
 	return results.ProfileConfig{
 		Name:                  p.Name,
 		SharedWords:           p.SharedWords,
@@ -216,6 +221,9 @@ func profileConfig(g *prompts.Generator, v *prompts.Vocab, naturalStop bool) res
 		WordListSHA256:        prompts.WordsSHA256(v.Words),
 		WordListSize:          len(v.Words),
 		MaxTokens:             p.MaxTokens,
+		OutputRangeRatio:      p.OutputRangeRatio,
+		OutputTokensMin:       lo,
+		OutputTokensMax:       hi,
 		IgnoreEOS:             !naturalStop,
 		Temperature:           prompts.Temperature,
 		RepetitionPenalty:     prompts.RepetitionPenalty,
@@ -234,6 +242,18 @@ func sweep(ctx context.Context, f *runFlags, levels []int, g *prompts.Generator,
 	summary := results.Summary{RunID: runID}
 	var all []results.Row
 	for _, c := range levels {
+		// Prompts are unique within a run, but the same seed on a warm
+		// engine replays earlier runs' prompts, and the prefix cache still
+		// holds them. Found in the cross-check: requests prefilled ~1 of
+		// their ~100 unique tokens.
+		if f.resetCache {
+			rctx, cancel := context.WithTimeout(ctx, resetTimeout)
+			err := client.ResetPrefixCache(rctx, resetPoll)
+			cancel()
+			if err != nil {
+				return all, fmt.Errorf("reset prefix cache before c=%d (engine needs VLLM_SERVER_DEV_MODE=1): %w", c, err)
+			}
+		}
 		r := &loadgen.Runner{
 			Client: client, Concurrency: c, Warmup: f.warmup, Duration: f.duration,
 			RequestTimeout: f.requestTimeout, Build: build,
@@ -248,6 +268,7 @@ func sweep(ctx context.Context, f *runFlags, levels []int, g *prompts.Generator,
 		}
 		all = append(all, rows...)
 		lvl := results.NewLevel(c, &res)
+		lvl.PrefixCacheReset = f.resetCache
 		summary.Levels = append(summary.Levels, lvl)
 		if err := dir.WriteSummary(&summary); err != nil {
 			return all, err
@@ -274,6 +295,13 @@ func promptWarning(c *results.PromptTokenCheck) string {
 	}
 	return ""
 }
+
+// A reset is refused only while blocks are held; between levels nothing is
+// running, so a refusal that lasts this long is a real failure.
+const (
+	resetTimeout = 30 * time.Second
+	resetPoll    = 100 * time.Millisecond
+)
 
 func metricsURL(baseURL string) string { return strings.TrimSuffix(baseURL, "/") + "/metrics" }
 
@@ -306,6 +334,9 @@ func collectFacts(ctx context.Context, f *runFlags, cfg *results.Config, stderr 
 		warn("engine argv lacks --max-num-seqs or --max-num-batched-tokens: the scheduler budgets the engine resolved are not on record")
 	}
 	cfg.Engine.Facts = facts
+	if !f.resetCache {
+		warn("prefix cache not reset between levels: prompts sent to this engine by earlier runs with the same seed may be served from cache")
+	}
 	if !f.gpuSampler {
 		return
 	}

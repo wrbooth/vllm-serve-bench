@@ -22,6 +22,10 @@ const (
 	// API). With messages it applies the chat template, so its count is
 	// the prompt_tokens a chat request would report.
 	TokenizePath = "/tokenize"
+	// ResetPrefixCachePath empties vLLM's prefix cache. It exists only when
+	// the engine runs with VLLM_SERVER_DEV_MODE=1, as vLLM's own benchmark
+	// sweep (vllm/benchmarks/sweep/server.py) runs it.
+	ResetPrefixCachePath = "/reset_prefix_cache"
 )
 
 // maxJSONBody bounds a non-streaming response body. /tokenize returns every
@@ -55,6 +59,38 @@ func (c *Client) Tokenize(ctx context.Context, req *TokenizeRequest) (TokenizeRe
 	}
 	err = c.doJSON(ctx, http.MethodPost, TokenizePath, body, &out)
 	return out, err
+}
+
+// ErrResetRefused means the engine kept answering success=false, which it
+// does while running requests still hold cache blocks.
+var ErrResetRefused = errors.New("prefix cache reset refused")
+
+// ResetPrefixCache empties the engine's prefix cache, retrying every poll
+// while the engine refuses (blocks still held) until ctx is done.
+func (c *Client) ResetPrefixCache(ctx context.Context, poll time.Duration) error {
+	refused := false
+	for {
+		var out struct {
+			Success bool `json:"success"`
+		}
+		if err := c.doJSON(ctx, http.MethodPost, ResetPrefixCachePath, nil, &out); err != nil {
+			// The deadline can land mid-request as easily as between
+			// attempts; after a refusal, either way the engine refused.
+			if refused && ctx.Err() != nil {
+				return fmt.Errorf("%w: %w", ErrResetRefused, ctx.Err())
+			}
+			return err
+		}
+		refused = true
+		if out.Success {
+			return nil
+		}
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("%w: %w", ErrResetRefused, ctx.Err())
+		case <-time.After(poll):
+		}
+	}
 }
 
 // Models returns the ids of the models the server is serving.

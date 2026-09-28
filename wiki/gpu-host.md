@@ -77,6 +77,9 @@ Startup logs: [raw/engine-logs/](../raw/engine-logs/).
   (`cache_config_info{kv_cache_size_tokens=…}`) but not these two. So the
   engine configs pass both explicitly at these values. The engine restarted
   with them got the same argv-visible budgets and the same 241,680-token pool.
+- **Dev mode:** the engine runs with `VLLM_SERVER_DEV_MODE=1` for
+  `POST /reset_prefix_cache` (it is 404 without it). Measured cost: none (see
+  [log.md](log.md), "Dev mode has no measurable cost").
 - **FP8 runs on sm_120** in this image: vLLM selects
   `CutlassFP8ScaledMMLinearKernel`, and the output is coherent (one
   temperature-0 prompt checked by eye). B2 is not blocked on kernels.

@@ -59,7 +59,8 @@ COVER_PKGS := ./internal/metrics/... ./internal/openai/... ./internal/prompts/..
 cover: ## Coverage on the result-producing packages; fails under COVER_MIN
 	@pkgs=$$(for p in $(COVER_PKGS); do d=$${p%/...}; [ -d "$$d" ] && echo $$p; done); \
 	if [ -z "$$pkgs" ]; then echo "cover: no result packages yet, skipping"; exit 0; fi; \
-	go test -count=1 -coverprofile=coverage.out $$pkgs >/dev/null && \
+	go test -count=1 -coverprofile=coverage.out $$pkgs >coverage.log 2>&1 || \
+		{ cat coverage.log; echo "cover: tests failed (above), so no coverage figure"; exit 1; }; \
 	total=$$(go tool cover -func=coverage.out | awk '/^total:/ {sub("%","",$$3); print $$3}'); \
 	echo "coverage $$total% (floor $(COVER_MIN)%)"; \
 	awk -v t="$$total" -v m="$(COVER_MIN)" 'BEGIN { exit (t+0 < m+0) }' || \
@@ -101,7 +102,7 @@ lint-secrets: ## gitleaks over the full git history (tokens, keys)
 
 lint-private: ## Tracked files vs the owner's private denylist (names, LAN addresses); skips where the list is absent (CI)
 	@if [ ! -f "$(DENYLIST)" ]; then echo "lint-private: no $(DENYLIST), skipping"; exit 0; fi; \
-	if git grep -n -I -i -F -f "$(DENYLIST)" -- . ':!raw/'; then \
+	if git grep -n -I -i -w -F -f "$(DENYLIST)" -- . ':!raw/'; then \
 		echo "lint-private: tracked content matches the private denylist (above). This repo is public."; exit 1; \
 	else echo "lint-private: clean"; fi
 
