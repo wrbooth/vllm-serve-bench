@@ -12,6 +12,9 @@ ACTIONLINT_VERSION := v1.7.12
 RUFF_VERSION := 0.16.9
 MARKDOWNLINT_VERSION := 0.23.3
 GITLEAKS_VERSION := v8.30.1
+# v0.8.0 requires Go 1.26; this repo builds with 1.25 and CI's setup-go does not
+# fetch a newer toolchain, so stay on the last release that builds with it.
+KUBECONFORM_VERSION := v0.7.0
 
 # `go install` puts tools in $(GOPATH)/bin, which is often not on PATH. Calling
 # a linter bare then fails with the shell's "command not found", which reads as
@@ -20,6 +23,7 @@ GITLEAKS_VERSION := v8.30.1
 GOLANGCI := $(shell command -v golangci-lint 2>/dev/null || command -v $(GOPATH_BIN)/golangci-lint 2>/dev/null)
 ACTIONLINT := $(shell command -v actionlint 2>/dev/null || command -v $(GOPATH_BIN)/actionlint 2>/dev/null)
 GITLEAKS := $(shell command -v gitleaks 2>/dev/null || command -v $(GOPATH_BIN)/gitleaks 2>/dev/null)
+KUBECONFORM := $(shell command -v kubeconform 2>/dev/null || command -v $(GOPATH_BIN)/kubeconform 2>/dev/null)
 
 # Owner-private files live in the PRIMARY checkout only (worktrees do not get
 # gitignored files), so resolve it from git's common dir.
@@ -38,7 +42,7 @@ endef
 
 PY_FILES := $(shell git ls-files '*.py' 2>/dev/null)
 
-.PHONY: build test race cover test-gpu fmt vet lint lint-go lint-actions lint-py lint-md lint-secrets lint-private install-tools tool-versions timesheet clean help
+.PHONY: build test race cover test-gpu fmt vet lint lint-go lint-actions lint-py lint-md lint-secrets lint-private lint-deploy lint-k8s lint-compose install-tools install-kubeconform tool-versions timesheet clean help
 
 build: ## Build the bench binary into bin/
 	CGO_ENABLED=0 go build -trimpath -o $(BIN) ./cmd/bench
@@ -106,10 +110,35 @@ lint-private: ## Tracked files vs the owner's private denylist (names, LAN addre
 		echo "lint-private: tracked content matches the private denylist (above). This repo is public."; exit 1; \
 	else echo "lint-private: clean"; fi
 
-install-tools: ## Install the pinned Go-based linters (honours GOBIN)
+# Deploy manifests are linted by their own targets, NOT by `make lint`:
+# kubeconform downloads the Kubernetes JSON schemas on every run (network), and
+# `docker compose config` needs the Docker CLI with the Compose plugin. `make
+# lint` stays offline and Docker-free; CI runs `make lint-deploy` as its own job.
+lint-deploy: lint-k8s lint-compose ## Validate deploy/: kubeconform + docker compose config (network, Docker CLI)
+
+lint-k8s: ## kubeconform -strict on deploy/k8s against the default schema location (downloads schemas)
+	$(call REQUIRE,$(KUBECONFORM),kubeconform)
+	$(KUBECONFORM) -strict -summary deploy/k8s
+
+# The committed .env plus each engine config, with dummy values for what
+# engine.sh (MODEL) and the gitignored .env.local (HF_CACHE) would supply.
+# Shell environment overrides env files in Compose, so these never shadow a
+# committed value. The bench profile is enabled so its service is checked too.
+lint-compose: ## docker compose config -q for every engine config (needs the Docker CLI, not the daemon)
+	@command -v docker >/dev/null || { echo "lint-compose: docker CLI not found"; exit 1; }
+	@cd deploy/compose && for f in engine/*.env; do \
+		echo "compose config: $$f"; \
+		MODEL=dummy/model HF_CACHE=/nonexistent/hf-cache \
+			docker compose --env-file .env --env-file "$$f" --profile bench config -q || exit 1; \
+	done
+
+install-tools: install-kubeconform ## Install the pinned Go-based linters (honours GOBIN)
 	go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCI_VERSION)
 	go install github.com/rhysd/actionlint/cmd/actionlint@$(ACTIONLINT_VERSION)
 	go install github.com/zricethezav/gitleaks/v8@$(GITLEAKS_VERSION)
+
+install-kubeconform: ## Install only the pinned kubeconform (the CI deploy job needs nothing else)
+	go install github.com/yannh/kubeconform/cmd/kubeconform@$(KUBECONFORM_VERSION)
 
 tool-versions: ## Print the pinned tool versions
 	@echo "golangci-lint $(GOLANGCI_VERSION)"
@@ -117,6 +146,7 @@ tool-versions: ## Print the pinned tool versions
 	@echo "ruff          $(RUFF_VERSION)"
 	@echo "markdownlint  $(MARKDOWNLINT_VERSION)"
 	@echo "gitleaks      $(GITLEAKS_VERSION)"
+	@echo "kubeconform   $(KUBECONFORM_VERSION)"
 
 # Transcripts of conversations started outside this repo (machine-specific, so
 # kept in the primary checkout's gitignored .env.local as TIMESHEET_ALSO=<globs>).

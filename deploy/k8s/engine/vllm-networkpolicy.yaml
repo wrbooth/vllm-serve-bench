@@ -1,0 +1,28 @@
+# The engine runs in dev mode (VLLM_SERVER_DEV_MODE=1), which registers
+# endpoints such as POST /reset_prefix_cache. In Compose the port is bound to
+# localhost; here the equivalent is to admit only the bench pods from this
+# namespace. Enforced only where the CNI implements NetworkPolicy.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: vllm-ingress
+  namespace: vllm-serve-bench
+  labels:
+    app.kubernetes.io/name: vllm
+    app.kubernetes.io/component: engine
+    app.kubernetes.io/part-of: vllm-serve-bench
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: vllm
+      app.kubernetes.io/component: engine
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: bench
+              app.kubernetes.io/part-of: vllm-serve-bench
+      ports:
+        - protocol: TCP
+          port: 8000

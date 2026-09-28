@@ -1,0 +1,19 @@
+# Hugging Face cache (subPath huggingface, mounted read-only) and vLLM's
+# torch.compile / CUDA-graph cache (subPath vllm), the same split as the
+# Compose file's host mount and named volume. The engine runs with
+# HF_HUB_OFFLINE=1, so the weights must be put here before the first start
+# (deploy/k8s/README.md). No storageClassName: the cluster default is used.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: model-cache
+  namespace: vllm-serve-bench
+  labels:
+    app.kubernetes.io/name: vllm
+    app.kubernetes.io/component: engine
+    app.kubernetes.io/part-of: vllm-serve-bench
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 50Gi # Qwen2.5-7B-Instruct bf16 is about 15 GB; headroom for the compile cache and a second checkpoint

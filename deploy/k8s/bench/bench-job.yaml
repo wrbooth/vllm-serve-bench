@@ -1,0 +1,147 @@
+# One engine config's sweep, both profiles, with the flags scripts/sweep.sh
+# uses. Profiles must not overlap (each would be the other's load), and a
+# container runs one command with no shell in a distroless image, so the
+# interactive sweep is an init container: it must finish before the throughput
+# sweep starts.
+#
+# A Job's pod template is immutable: delete the finished Job before applying
+# it again (deploy/k8s/README.md).
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: bench-sweep
+  namespace: vllm-serve-bench
+  labels:
+    app.kubernetes.io/name: bench
+    app.kubernetes.io/component: loadgen
+    app.kubernetes.io/part-of: vllm-serve-bench
+spec:
+  # A retried sweep would write a second, partial run directory next to the
+  # first. A failure should be seen and rerun by hand, not retried.
+  backoffLimit: 0
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: bench
+        app.kubernetes.io/component: loadgen
+        app.kubernetes.io/part-of: vllm-serve-bench
+    spec:
+      restartPolicy: Never
+      # On the engine's node, as in Compose: TTFT should not include a
+      # node-to-node hop. The bench is the one CPU workload allowed past the
+      # GPU taint; it requests no GPU.
+      tolerations:
+        - key: nvidia.com/gpu
+          operator: Exists
+          effect: NoSchedule
+      affinity:
+        podAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  app.kubernetes.io/name: vllm
+                  app.kubernetes.io/component: engine
+              topologyKey: kubernetes.io/hostname
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532 # so the results PVC is writable by the distroless nonroot user
+        seccompProfile:
+          type: RuntimeDefault
+      initContainers:
+        - name: interactive
+          # Pin to a commit tag (:<sha>) for a run that will be reported.
+          image: ghcr.io/wrbooth/vllm-serve-bench:latest
+          envFrom:
+            - configMapRef:
+                name: bench-engine
+          # --gpu-sampler=false: the engine holds the node's only GPU, so no
+          # nvidia-smi is injected here. GPU telemetry on a cluster would come
+          # from dcgm-exporter instead (design, not built).
+          args:
+            - run
+            - --profile
+            - interactive
+            - --warmup
+            - 10s
+            - --duration
+            - 60s
+            - --seed
+            - "1"
+            - --base-url
+            - http://vllm:8000
+            - --model
+            - $(MODEL)
+            - --out
+            - /results/$(ENGINE_CONFIG)
+            - --engine-config
+            - $(ENGINE_CONFIG)
+            - --engine-argv
+            - $(ENGINE_ARGV)
+            - --engine-image
+            - $(ENGINE_IMAGE)
+            - --gpu-sampler=false
+            - --ready-timeout
+            - 30m # covers an image pull and a cold engine start if applied together
+          resources: # starting values, not measured on a cluster
+            requests:
+              cpu: "2"
+              memory: 1Gi
+            limits:
+              memory: 2Gi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          volumeMounts:
+            - name: results
+              mountPath: /results
+      containers:
+        - name: throughput
+          image: ghcr.io/wrbooth/vllm-serve-bench:latest
+          envFrom:
+            - configMapRef:
+                name: bench-engine
+          args:
+            - run
+            - --profile
+            - throughput
+            - --warmup
+            - 10s
+            - --duration
+            - 60s
+            - --seed
+            - "1"
+            - --base-url
+            - http://vllm:8000
+            - --model
+            - $(MODEL)
+            - --out
+            - /results/$(ENGINE_CONFIG)
+            - --engine-config
+            - $(ENGINE_CONFIG)
+            - --engine-argv
+            - $(ENGINE_ARGV)
+            - --engine-image
+            - $(ENGINE_IMAGE)
+            - --gpu-sampler=false
+          resources: # starting values, not measured on a cluster
+            requests:
+              cpu: "2"
+              memory: 1Gi
+            limits:
+              memory: 2Gi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          volumeMounts:
+            - name: results
+              mountPath: /results
+      volumes:
+        - name: results
+          persistentVolumeClaim:
+            claimName: bench-results
