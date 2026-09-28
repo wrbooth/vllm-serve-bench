@@ -1,0 +1,18 @@
+{
+  "comment": "The SLOs, chosen from the baseline data after the baseline sweep (AGENTS.md). The reasoning is in wiki/log.md; bench report reads this file. A level meets its profile's SLO when every bound holds (equal to the limit passes) and it had no errors.",
+  "profiles": {
+    "interactive": {
+      "decision": "wiki/log.md, 2026-09-27 decision: Interactive SLO",
+      "bounds": [
+        {"metric": "ttft", "percentile": 95, "max_ms": 100},
+        {"metric": "tpot", "percentile": 95, "max_ms": 25}
+      ]
+    },
+    "throughput": {
+      "decision": "wiki/log.md, 2026-09-27 decision: Throughput SLO",
+      "bounds": [
+        {"metric": "e2e", "percentile": 95, "max_ms": 15000}
+      ]
+    }
+  }
+}
