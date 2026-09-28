@@ -65,8 +65,11 @@ there. Tool versions are pinned in the Makefile only; CI reads them from there.
   of the company or people the exercise is for, in files, commit messages or
   PR text. Machine-specific values go in the gitignored `.env.local`. Two
   checks back this up: `make lint-secrets` (gitleaks, also in CI) and
-  `make lint-private`, which greps tracked files against the owner's private
-  denylist in `.private/` (local only; the list itself is never committed).
+  `make lint-private`, which greps tracked files for whole-word matches of the
+  owner's private denylist in `.private/` (local only; the list itself is
+  never committed). Whole words, because model output in committed results
+  contains ordinary words with a denylisted term inside them. A form with
+  letters glued on (`NameXYZ`) is missed and belongs in the list itself.
   If you are unsure whether something is publishable, leave it out and ask.
 
 ## Testing standards

@@ -102,7 +102,7 @@ lint-secrets: ## gitleaks over the full git history (tokens, keys)
 
 lint-private: ## Tracked files vs the owner's private denylist (names, LAN addresses); skips where the list is absent (CI)
 	@if [ ! -f "$(DENYLIST)" ]; then echo "lint-private: no $(DENYLIST), skipping"; exit 0; fi; \
-	if git grep -n -I -i -F -f "$(DENYLIST)" -- . ':!raw/'; then \
+	if git grep -n -I -i -w -F -f "$(DENYLIST)" -- . ':!raw/'; then \
 		echo "lint-private: tracked content matches the private denylist (above). This repo is public."; exit 1; \
 	else echo "lint-private: clean"; fi
 
