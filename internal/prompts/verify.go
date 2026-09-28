@@ -53,7 +53,10 @@ func checkChunk(ctx context.Context, tk Tokenizer, words []string) ([]string, er
 		// rules out; no split can localise it, so it is an error.
 		return nil, fmt.Errorf("prompts: %d words counted as %d tokens; words merged across spaces", len(words), n)
 	case len(words) == 1:
-		return words, nil
+		// A fresh slice, never the caller's: the append below would
+		// otherwise write the right half's results into the caller's
+		// word list through this subslice's spare capacity.
+		return []string{words[0]}, nil
 	}
 	mid := len(words) / 2
 	left, err := checkChunk(ctx, tk, words[:mid])

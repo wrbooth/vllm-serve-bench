@@ -58,6 +58,26 @@ func (f *fakeTokenizer) CountChat(_ context.Context, msgs []openai.Message) (int
 	return n, nil
 }
 
+func TestCheckWordsDoesNotModifyTheCallersList(t *testing.T) {
+	t.Parallel()
+	// Bad words in both halves of one batch: the left half returns [aa] and
+	// the right [ii], and the two are appended. When [aa] was a subslice of
+	// the input, that append wrote "ii" over words[1] ("bb"), corrupting the
+	// list `verify --write` then prunes. Found by -race, pinned here without it.
+	words := []string{"aa", "bb", "cc", "dd", "ee", "ff", "gg", "hh", "ii"}
+	orig := slices.Clone(words)
+	bad, err := CheckWords(context.Background(), &fakeTokenizer{split: map[string]int{"aa": 3, "ii": 2}}, words, 9)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(bad, []string{"aa", "ii"}) {
+		t.Fatalf("bad = %v, want [aa ii]", bad)
+	}
+	if !slices.Equal(words, orig) {
+		t.Fatalf("CheckWords modified its input: %v, was %v", words, orig)
+	}
+}
+
 func TestCheckWordsFindsMultiTokenWordsByBisection(t *testing.T) {
 	t.Parallel()
 	words := []string{"aa", "bb", "cc", "dd", "ee", "ff", "gg", "hh", "ii"}
