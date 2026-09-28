@@ -768,3 +768,37 @@ and CI/CD), [deploy/k8s/README.md](../deploy/k8s/README.md).
   running on the dev machine); the CI image job is the first real build.
 - The planned Compose `observability` profile (Prometheus + Grafana) is not
   built; docs/02 now says so.
+
+## [2026-09-28] work | Experiment B1 result: the default is worth most of the interactive goodput
+
+Data: [results/b1-no-prefix-cache/](../results/b1-no-prefix-cache/), in docs/03.
+All levels are valid, with 0 errors and 0 prompt-token mismatches. The figures
+below were read off the generated tables.
+
+- **The first interactive run was superseded.** It ran only the knee levels
+  (1, 32, 64, 128, 256). B1 passes at c=1 and fails at c=32, so its SLO
+  boundary lay in levels it never ran, and the report would have picked c=1 and
+  shown a misleading −97%. The full rerun
+  (`interactive-no-prefix-cache-20260928-232408`) supersedes it; both are
+  committed. The five shared levels agree closely.
+- **Found and fixed while running B1:** with caching off the engine makes no
+  cache lookups, so the engine check's queries-minus-hits formula read 0 and
+  would have marked every B1 level CACHED. It now counts Δprompt_tokens when
+  there were no lookups (commit `754a7e5`), and every level shows the full
+  433-token prompt prefilled.
+- **Result against the design's hypothesis:**
+  - **Low concurrency, as predicted:** TTFT p95 roughly doubles at c=1 (18 to
+    35 ms), while throughput and TPOT barely move there.
+  - **The gap grows under load instead of shrinking:** interactive throughput
+    is −18% at c=16, −39% at c=64 and −45% at c=256. TPOT p95 rises up to
+    +85%. Recomputing the shared ~300 tokens for every request is GPU work
+    that competes with decode inside the same 2048-token step budget, so it
+    costs throughput and per-token latency, not only queueing time.
+  - **SLO:** the boundary drops from c=64 to c=16. Max compliant goodput goes
+    from 4,140 to 1,211 tok/s (−70.8%).
+  - **Throughput profile (no shared prefix):** −1.7% at c=64, unaffected as
+    predicted.
+- **Also verified:** the published GHCR image. Pulled anonymously on the GPU
+  host, `bench version` printed the merge SHA, and `bench sample` inside the
+  distroless container read `nvidia-smi` through CDI (clean `gpu.csv` rows).
+  That closes the item PR #13 left unverified.

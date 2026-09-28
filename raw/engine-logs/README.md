@@ -18,5 +18,7 @@ everything in `raw/`.
 
 | `2026-09-28-7b-b2-fp8-warm.log` | Experiment B2, the self-made FP8 checkpoint, second (warm) start | baseline flags, `/models/Qwen2.5-7B-Instruct-FP8-Dynamic` |
 
+| `2026-09-28-7b-b1-no-prefix-cache-warm.log` | Experiment B1, prefix caching off, second (warm) start | baseline flags + `--no-enable-prefix-caching` |
+
 The first three were started with `--model`, before the switch to the
 positional model argument.

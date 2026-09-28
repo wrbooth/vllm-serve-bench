@@ -92,6 +92,7 @@ type Sample struct {
 	PrefixHits    float64 // vllm:prefix_cache_hits_total
 	TTFTSum       float64 // vllm:time_to_first_token_seconds_sum
 	TTFTCount     float64 // vllm:time_to_first_token_seconds_count
+	PromptTokens  float64 // vllm:prompt_tokens_total
 }
 
 // Dist is a latency distribution in milliseconds.
