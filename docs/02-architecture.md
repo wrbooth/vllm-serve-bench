@@ -40,6 +40,12 @@ the engine so that TTFT is not polluted by a LAN hop.
 | API | vLLM's OpenAI-compatible `/v1/chat/completions` with `stream: true` and `stream_options.include_usage: true` | Streaming is what makes TTFT and TPOT measurable client-side; the final `usage` chunk gives exact prompt and completion token counts, so I never estimate lengths. |
 | Health | `/health` for liveness, first successful `/v1/models` for readiness | The bench waits on readiness before starting a run and records model load time. |
 
+The engine runs with `VLLM_SERVER_DEV_MODE=1`, as vLLM's own benchmark sweep
+(`vllm/benchmarks/sweep/server.py`) runs its server, for the one dev endpoint the bench uses:
+`/reset_prefix_cache`. In v0.29 the flag otherwise only logs stack traces on errors, and a
+fresh-engine A/B showed no measurable effect on KV pool, TTFT, TPOT or throughput
+(`results/checks/20260927-dev-mode/`). The port is bound to localhost.
+
 Baseline engine flags are the vLLM defaults except `--gpu-memory-utilization 0.90` and
 `--max-model-len 8192`. The scheduler budgets `--max-num-seqs 256 --max-num-batched-tokens 2048`
 are passed explicitly at their default values for this card, because neither the startup log nor
@@ -114,9 +120,15 @@ Each request's output length is drawn uniformly from the mean ±25% (the same ru
 `vllm bench serve --random-range-ratio`: 96–160 tokens for `interactive`, 192–320 for
 `throughput`), seeded by request index, and held with `max_tokens` plus vLLM's `ignore_eos: true`.
 Output tokens stay controlled and reproducible, but requests do not all finish together. With a
-single fixed length, a closed loop's workers ran in lockstep, and median TTFT depended on how
-their arrivals lined up with the engine's steps: two identical runs disagreed by 38% (see
-`results/verify/` and the wiki log). A `--natural-stop` flag turns `ignore_eos` off for a realism
+single fixed length, a closed loop's workers run in lockstep and arrive together. `vllm bench
+serve`'s own client, measured uncached both times, reported a median TTFT of 65.8 ms with a
+fixed 128 and 31.7 ms with 96–160 (`results/verify/`).
+
+Prompts are unique within a run but not across runs: a second run with the same seed replays
+the first one's prompts. So `bench run` empties the engine's prefix cache before every level
+(`POST /reset_prefix_cache`), and the level's warmup re-caches the shared prefix. Without the
+reset, a warm engine served repeated runs' prompts almost entirely from cache: requests
+prefilled about 1 of their ~100 unique tokens. A `--natural-stop` flag turns `ignore_eos` off for a realism
 run, and the write-up reports which mode each table used.
 
 ### Workload profiles

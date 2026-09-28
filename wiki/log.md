@@ -348,3 +348,47 @@ cluster was not investigated.
 Consequence: the harness passes the cross-check on everything except median
 TTFT, and median TTFT is not a stable metric under this load model as it
 stands. A fix is needed before the baseline sweep (owner decision, pending).
+
+## [2026-09-27] work | Correction: the cross-check's TTFT clusters were cache hits, not lockstep
+
+The "Cross-check" entry above blamed the lockstep of fixed-length requests
+for median TTFT drifting 38% between two identical runs. That diagnosis was
+wrong. The per-second prefix-cache counters in the committed telemetry
+show what happened. The bench reuses its prompts across runs (same seed,
+request index restarting at 0), and the warm engine's prefix cache still
+held them from earlier runs:
+
+- run (b) replayed (a)'s prompts and prefilled about 1 uncached token per
+  request, all the way through;
+- run (a) was fully cached for its first ~14 s (indexes already sent by the
+  smoke runs), then uncached at 113 tokens per request;
+- vLLM's client was uncached throughout.
+
+The ~29 ms cluster was the cached requests. The same contamination hit the
+second round, in which ours prefilled ~1.5 uncached tokens per request
+against vLLM's 106.
+
+Lockstep is still real, but the evidence for it is vLLM's own client, which
+was uncached in both rounds: median TTFT 65.8 ms with a fixed 128-token
+output and 31.7 ms with 96–160. So the output-length spread stays.
+
+Fix: `bench run` resets the prefix cache before every level (commit
+`e5aa969`). A `bench run` is refused if the engine cannot reset, unless
+`--reset-prefix-cache=false`, which leaves a warning. The lesson: the samplers
+caught this, and the client-side numbers alone never would have. Engine
+counters are the check on the load generator.
+
+## [2026-09-27] decision | Dev mode has no measurable cost
+
+`/reset_prefix_cache` exists only with `VLLM_SERVER_DEV_MODE=1`. In the pinned
+v0.29 source the flag registers the dev routes and defaults
+`log_error_stack` to true; nothing else reads it, and `envs.py` excludes it
+from the compile-cache hash. vLLM's own sweep tool sets it for the same
+reset.
+
+Checked anyway: two fresh engine starts, dev mode off then on, the same
+prompts (seed 101, never used before), and c=8 for 30 s
+([results/checks/20260927-dev-mode/](../results/checks/20260927-dev-mode/)).
+KV pool, RPS, output tok/s and TPOT p50 were identical, and TTFT p50 was
+31.6 vs 31.7 ms. Both prefilled 113 uncached tokens per request, which
+confirms that a fresh cache behaves as designed. Compose sets it by default.
