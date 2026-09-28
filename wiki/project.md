@@ -23,8 +23,8 @@ Slides are drafted 2026-09-29.
 | 1 Hz samplers (engine `/metrics`, nvidia-smi) | `done` | `internal/sampler`, `bench sample`, `bench run` |
 | Fake server + integration tests | `done` | `internal/fakeserver` |
 | Cross-check against `vllm bench serve` | `done` (passes; `bench verify` generates the comparison) | `results/verify/`, `scripts/cross-check.sh`, `internal/crosscheck` |
-| Baseline sweeps, both profiles | `todo` | `results/` |
-| SLO chosen from baseline | `todo` | `docs/03-results.md` |
+| Baseline sweeps, both profiles | `done` | `results/baseline/`, `scripts/sweep.sh` |
+| SLO chosen from baseline | `done` (interactive TTFT p95 ≤ 100 ms and TPOT p95 ≤ 25 ms; throughput E2E p95 ≤ 15 s; see [log.md](log.md)); goes into `docs/03` with `bench report` | `docs/03-results.md` |
 | Experiment A — batching | `todo` | |
 | Experiment B1 — prefix caching | `todo` | |
 | Experiment B2 — self-made FP8 checkpoint | `todo` | `scripts/quantize/` |

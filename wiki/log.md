@@ -547,3 +547,25 @@ bounds; goodput counts output tokens only at levels that do.
   roughly adds 19% goodput, which would overstate a small effect. Each
   experiment reports its per-level p95s next to the pass/fail, so the
   margin stays visible.
+
+## [2026-09-27] decision | Throughput SLO: E2E p95 ≤ 15 s
+
+Chosen after the baseline, from
+[throughput-baseline-20260928-014014](../results/baseline/throughput-baseline-20260928-014014/).
+A batch summarization user waits for the finished summary, so the SLO is
+completion time. TTFT and TPOT stay in the tables as diagnostics.
+
+- **Where it bites:** the baseline meets it at c=64 (E2E p95 13.0 s) and fails
+  at c=128 (26.2 s). The margins on both sides are wide, unlike the
+  interactive TPOT bound. The compliant peak is also the throughput peak
+  (1,584 tok/s at c=64). B2 (FP8: faster decode, larger KV pool) and A
+  (scheduler budgets) both have room to move c=128 inside.
+- **Alternatives considered:**
+  - TTFT p95 ≤ 1 s with TPOT p95 ≤ 100 ms: c=128 passes by 1.6% on TTFT
+    (984 ms), a knife edge, and the boundary lands on a level with no
+    throughput advantage.
+  - TTFT ≤ 2 s with TPOT ≤ 50 ms: the same boundary as E2E, but it fails on a
+    metric a batch user does not see.
+- **Caveat:** E2E p95 is dominated by the longer outputs in the 192–320 range.
+  The lengths are fixed by seed and request index, so every experiment sees
+  the same ones.
