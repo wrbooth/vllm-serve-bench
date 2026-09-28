@@ -54,16 +54,16 @@ Startup logs: [raw/engine-logs/](../raw/engine-logs/).
 | Config | Weights | KV pool | KV tokens | Ready after |
 |---|---|---|---|---|
 | 0.5B, bf16 (dev) | n/a | 26.13 GiB | 2,283,184 | 132 s (cold compile cache) |
-| 7B bf16, prefix caching on | 14.29 GiB | 11.17 GiB | 209,120 | 116 s |
-| 7B bf16, prefix caching off (**the baseline**) | 14.29 GiB | 12.91 GiB | 241,680 | 108 s |
+| 7B bf16, prefix caching on (**the baseline**) | 14.29 GiB | 11.17 GiB | 209,120 | 116 s |
+| 7B bf16, prefix caching off (B1) | 14.29 GiB | 12.91 GiB | 241,680 | 108 s |
 | 7B online FP8 (`--quantization fp8`) | 8.2 GiB | 17.24 GiB | 322,880 | 127 s |
 
 - **FP8 runs on sm_120** in this image: vLLM selects
   `CutlassFP8ScaledMMLinearKernel`, and the output is coherent (one
   temperature-0 prompt checked by eye). B2 is not blocked on kernels.
 - **Prefix caching changed the KV pool by 1.74 GiB** with nothing else
-  changed. Cause not investigated. The baseline's number is the one to size
-  against.
+  changed. Cause not investigated. The baseline (caching on) is the one to
+  size against, and B1 reports the difference as part of its trade-off.
 - The first SSE chunk is a role-only delta with empty content, so TTFT has to
   be timed at the first non-empty content.
 - The model's `generation_config.json` overrides vLLM's default sampling

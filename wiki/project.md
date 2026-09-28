@@ -58,10 +58,10 @@ second hardware point.
 
 - ~~Does the pinned vLLM image's FP8 path run on sm_120?~~ Yes (CUTLASS FP8
   kernel); see [gpu-host.md](gpu-host.md#engine-startup-measured).
-- The baseline KV pool (241,680 tokens) is larger than the design assumed, so
-  the throughput profile's top level (128 × ~1.8k ≈ 230k tokens) may no
-  longer force preemption. Extend the sweep or lengthen the documents? Owner
-  to decide before the baseline sweep.
+- Throughput profile sizing: at 128 × ~1.8k ≈ 230k tokens it exceeds the
+  baseline KV pool (209,120) by only ~10%, and FP8 (B2) has 322,880. Is
+  that enough to measure preemption, and does B2 then have anything to
+  relieve? Owner to decide before the baseline sweep.
 - Does llm-compressor install cleanly next to torch 2.13 / CUDA 13, or does
   quantization need its own container? It will run in the `ubuntu-gpu-v2`
   distrobox either way ([gpu-host.md](gpu-host.md#access)).

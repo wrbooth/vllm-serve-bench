@@ -40,9 +40,10 @@ the engine so that TTFT is not polluted by a LAN hop.
 | API | vLLM's OpenAI-compatible `/v1/chat/completions` with `stream: true` and `stream_options.include_usage: true` | Streaming is what makes TTFT and TPOT measurable client-side; the final `usage` chunk gives exact prompt and completion token counts, so I never estimate lengths. |
 | Health | `/health` for liveness, first successful `/v1/models` for readiness | The bench waits on readiness before starting a run and records model load time. |
 
-Baseline engine flags are the vLLM defaults except `--gpu-memory-utilization 0.90`,
-`--max-model-len 8192` and `--no-enable-prefix-caching` (on by default in the V1 engine; off in
-the baseline so B1 measures turning it on). Every run records the full engine command line into `config.json`
+Baseline engine flags are the vLLM defaults except `--gpu-memory-utilization 0.90` and
+`--max-model-len 8192`. That includes prefix caching, which the V1 engine turns on by default:
+the baseline is what a stock deployment runs, and B1 measures what that default is worth by
+turning it off. Every run records the full engine command line into `config.json`
 because vLLM takes the **last** occurrence of a repeated flag; I have been bitten by a wrapper
 appending a default after the profile's value, so the harness greps the running container's
 argv rather than trusting the compose file.
@@ -173,7 +174,7 @@ Each is one engine restart with one or two flags changed, the same seeds, and th
 | # | Change | Hypothesis | Where it should show |
 |---|---|---|---|
 | A | `--max-num-seqs`, `--max-num-batched-tokens` (batching / scheduler budget) | Larger batches raise output tok/s until the decode step becomes compute-bound or KV runs out; TPOT and p95 rise with batch size. There is an operating point that meets the SLO at the highest goodput. | Both profiles: tok/s vs concurrency curve, p95 E2E, preemptions |
-| B1 | prefix caching off → on (V1 engine has it on by default; baseline runs with `--no-enable-prefix-caching`) | Skipping the shared ~300-token prefill cuts TTFT roughly by the shared fraction at low concurrency; the effect shrinks at high concurrency where TTFT is queue-dominated. No effect on `throughput`. | `interactive` TTFT; `prefix_cache_hits / queries` confirms the mechanism |
+| B1 | prefix caching on (the V1 default, in the baseline) → off (`--no-enable-prefix-caching`): an ablation of a default | The cache is what lets the engine skip the shared ~300-token prefill, so turning it off raises TTFT by roughly the shared fraction at low concurrency; the gap shrinks at high concurrency where TTFT is queue-dominated. No effect on `throughput`. The flag also moves the KV pool size (seen in the startup logs), so the trade-off reports capacity alongside TTFT. | `interactive` TTFT; `prefix_cache_hits / queries` in the baseline confirms the mechanism, and stays at zero with caching off |
 | B2 | Serve an **FP8 checkpoint I produce** with llm-compressor (`scripts/quantize/`, recipe committed, weights pushed to `wrbooth/Qwen2.5-7B-Instruct-FP8-Dynamic`). FP8 dynamic first (no calibration data); FP8 static with ~512 calibration samples as a stretch, compared on the same sweep. | Half the weight bytes: lower TPOT at low concurrency (decode is bandwidth-bound) and ~60% more KV capacity, so `throughput` sustains higher concurrency before preemption and the p99 cliff moves right. Quality: I made the weights, so the check is mine: fixed-prompt output diff vs bf16 committed under `results/quality/`; published deltas cited; a real rollout gates on an eval set. | `throughput` plateau height and position; TPOT at c=1; `kv_cache_usage`, preemptions |
 | C (stretch) | `--kv-cache-dtype fp8` | Doubles KV capacity independent of weights; near-free on Blackwell. | Same as B2, KV side only |
 

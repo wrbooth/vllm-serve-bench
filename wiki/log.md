@@ -97,3 +97,13 @@ throughput profile's sizing (open question in [project.md](project.md)).
 
 The host has no Python. At the owner's direction, host tooling (llm-compressor
 for B2) runs in the `ubuntu-gpu-v2` distrobox; the engine stays in Docker.
+
+## [2026-09-27] decision | Reversed: the baseline keeps prefix caching on; B1 turns it off
+
+Supersedes the entry above that turned caching off in the baseline. The owner
+chose defaults as the baseline: it is what a stock deployment runs, the SLO
+then comes from realistic data, and the other experiments run on a realistic
+config. B1 becomes an ablation of a default ("what is it worth?"). The
+alternative, off → on, reads more naturally but invites "you turned off a
+default to win it back". The KV-pool side effect (209,120 tokens with caching
+on vs 241,680 off) goes into B1's trade-off.
