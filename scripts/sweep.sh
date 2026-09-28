@@ -11,7 +11,8 @@
 #
 # LEVELS_<PROFILE> (e.g. LEVELS_INTERACTIVE=32,64,128,256) overrides a
 # profile's default concurrency list, for experiments that only need the
-# levels around the baseline's knee.
+# levels around the baseline's knee. MODEL overrides the served model (a
+# checkpoint made here is served as /models/<name>).
 set -euo pipefail
 
 config=${1:?usage: $0 <engine-config> <out-dir> [profile ...]}
@@ -20,7 +21,7 @@ shift 2
 profiles=("$@")
 [[ ${#profiles[@]} -gt 0 ]] || profiles=(interactive throughput)
 
-model=Qwen/Qwen2.5-7B-Instruct
+model=${MODEL:-Qwen/Qwen2.5-7B-Instruct}
 here=$(cd "$(dirname "$0")/.." && pwd)
 compose=$here/compose
 argv=$("$compose/engine.sh" argv)

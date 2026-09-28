@@ -664,3 +664,40 @@ costs 6% of KV capacity, which shows up as more preemption at the top. It
 does not move either SLO boundary. For this card and these SLOs the default
 2048 stays; A is reported as a measured null result on goodput, with a real
 effect on TTFT.
+
+## [2026-09-28] decision | Experiment B2: checkpoint made; hypothesis recorded before serving it
+
+[scripts/quantize/quantize.py](../scripts/quantize/quantize.py) produced
+`Qwen2.5-7B-Instruct-FP8-Dynamic` on the 5090, in the GPU distrobox, with
+`llmcompressor` 0.14.0 (pinned in `requirements.txt`).
+
+- **What the scheme does:** every Linear layer's weights become FP8 E4M3 with
+  one static scale per output channel. Activations are FP8, with a scale
+  computed per token at run time, so no calibration set is needed.
+  `lm_head` stays in bf16 and the KV cache is unquantized. The checkpoint's
+  `quantization_config` confirms all of this.
+- **Result of the quantization:** it took 17 s and needed no data. The
+  checkpoint is 8.2 GB against 15 GB, and `provenance.json` records the
+  source snapshot and tool versions.
+- **The engine:** the checkpoint is served as `/models/…` through a
+  read-only mount (`MODELS_DIR` in `.env.local`), with exactly the baseline
+  flags (`engine/b2-fp8.env`). vLLM reads the scheme from the checkpoint.
+
+Hypothesis, recorded before any serving data:
+
+- **Decode is bandwidth-bound at low concurrency.** Halving the weight bytes
+  should cut TPOT at c=1 noticeably, though by less than half, since KV
+  reads, activations and kernel overheads do not shrink.
+- **The KV pool grows.** The online-FP8 smoke test's cold start gave about
+  323k tokens against the baseline's 209k cold (241k warm). I expect a
+  warm pool well above the baseline's.
+- **Throughput:** more KV room and cheaper decode should push the knee to the
+  right. c=128 may come inside E2E p95 ≤ 15 s, and c=192 and 256 should
+  queue less.
+- **Interactive:** the knee sits at the power cap. FP8 GEMMs do less work per
+  token, so tok/s at c=128 and 256 should rise, and c=128 may come inside the
+  TPOT bound.
+- **Quality:** checked separately, on the same fixed prompts, by comparing
+  greedy outputs against the bf16 model.
+- **What would refute it:** no TPOT gain at c=1, or no throughput gain past the
+  baseline knee.

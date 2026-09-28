@@ -27,7 +27,7 @@ case "${1:-}" in
 up)
 	[[ $# -eq 3 ]] || { echo "usage: $0 up <config> <model>" >&2; exit 2; }
 	[[ -f "engine/$2.env" ]] || { echo "no engine/$2.env" >&2; exit 2; }
-	[[ -f .env.local ]] || { echo "missing .env.local (HF_CACHE=...)" >&2; exit 2; }
+	[[ -f .env.local ]] || { echo "missing .env.local (HF_CACHE=..., MODELS_DIR=...)" >&2; exit 2; }
 	export CONFIG=$2 MODEL=$3
 	start=$(date +%s)
 	compose up -d --force-recreate vllm
