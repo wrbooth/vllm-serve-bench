@@ -21,6 +21,11 @@ import (
 // token. MinUncachedFraction (default 0.9) sits between the two. The margin
 // below 1.0 covers the ratio's edge error: a request prefilled just before
 // a sample is counted in the next one, which moves the ratio by about 1/n.
+//
+// An engine run with prefix caching off (B1) makes no cache lookups, so both
+// cache counters stay flat and the formula above reads zero. With no lookups
+// at all while prompts were processed, nothing can have been served from a
+// cache, so the uncached count is every prompt token: Δprompt_tokens / Δcount.
 type Engine struct {
 	Label string `json:"label"`
 	Span  string `json:"span"` // "measured window" or "whole file"
@@ -96,6 +101,10 @@ func CheckEngine(label, span string, from, to Sample, haveSpan bool, unique int,
 	}
 	e.OK = true
 	uncached := (to.PrefixQueries - to.PrefixHits) - (from.PrefixQueries - from.PrefixHits)
+	if to.PrefixQueries == from.PrefixQueries && to.PromptTokens > from.PromptTokens {
+		uncached = to.PromptTokens - from.PromptTokens
+		e.Note = "no prefix-cache lookups (caching off): every prompt token was computed"
+	}
 	e.UncachedPerRequest = uncached / e.TTFTCount
 	e.MeanTTFTms = (to.TTFTSum - from.TTFTSum) / e.TTFTCount * 1000
 	switch {

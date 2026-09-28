@@ -8,28 +8,28 @@ import (
 	"time"
 )
 
-const header = "t_unix_ms,vllm:num_requests_running,vllm:prefix_cache_queries_total,vllm:prefix_cache_hits_total,vllm:time_to_first_token_seconds_sum,vllm:time_to_first_token_seconds_count,error\n"
+const header = "t_unix_ms,vllm:num_requests_running,vllm:prefix_cache_queries_total,vllm:prefix_cache_hits_total,vllm:time_to_first_token_seconds_sum,vllm:time_to_first_token_seconds_count,vllm:prompt_tokens_total,error\n"
 
 func TestParseTelemetryReadsColumnsByNameAndSkipsFailedTicks(t *testing.T) {
 	t.Parallel()
 	in := header +
-		"1000,8,100,40,0.5,2,\n" +
-		"2000,,,,,,scrape failed: timeout\n" +
-		"3000,8,300,90,1.25,6,\n"
+		"1000,8,100,40,0.5,2,866,\n" +
+		"2000,,,,,,,scrape failed: timeout\n" +
+		"3000,8,300,90,1.25,6,2598,\n"
 	got, err := ParseTelemetry(strings.NewReader(in))
 	if err != nil {
 		t.Fatal(err)
 	}
 	want := []Sample{
-		{At: time.UnixMilli(1000), PrefixQueries: 100, PrefixHits: 40, TTFTSum: 0.5, TTFTCount: 2},
-		{At: time.UnixMilli(3000), PrefixQueries: 300, PrefixHits: 90, TTFTSum: 1.25, TTFTCount: 6},
+		{At: time.UnixMilli(1000), PrefixQueries: 100, PrefixHits: 40, TTFTSum: 0.5, TTFTCount: 2, PromptTokens: 866},
+		{At: time.UnixMilli(3000), PrefixQueries: 300, PrefixHits: 90, TTFTSum: 1.25, TTFTCount: 6, PromptTokens: 2598},
 	}
 	if len(got) != len(want) {
 		t.Fatalf("got %d samples, want %d: %+v", len(got), len(want), got)
 	}
 	for i := range want {
 		if !got[i].At.Equal(want[i].At) || got[i].PrefixQueries != want[i].PrefixQueries || got[i].PrefixHits != want[i].PrefixHits ||
-			got[i].TTFTSum != want[i].TTFTSum || got[i].TTFTCount != want[i].TTFTCount {
+			got[i].TTFTSum != want[i].TTFTSum || got[i].TTFTCount != want[i].TTFTCount || got[i].PromptTokens != want[i].PromptTokens {
 			t.Errorf("sample %d = %+v, want %+v", i, got[i], want[i])
 		}
 	}
@@ -40,8 +40,8 @@ func TestParseTelemetryRejectsMalformedFiles(t *testing.T) {
 	tests := map[string]string{
 		"Empty":         "",
 		"MissingColumn": "t_unix_ms,error\n1000,\n",
-		"BadTime":       header + "soon,8,1,1,1,1,\n",
-		"BadValue":      header + "1000,8,many,1,1,1,\n",
+		"BadTime":       header + "soon,8,1,1,1,1,1,\n",
+		"BadValue":      header + "1000,8,many,1,1,1,1,\n",
 		"Ragged":        header + "1000,8\n",
 	}
 	for name, in := range tests {

@@ -148,7 +148,7 @@ A level meets the SLO when every bound holds (a value equal to the limit passes)
 | 128 | 113.0 | ok | 0 | 126.0 / 128 | 0.0 / 0 | 9.8% / 10.3% | 599 / 600 | 60 / 60 |
 | 256 | 113.0 | ok | 0 | 252.1 / 256 | 0.0 / 0 | 19.5% / 21.3% | 596 / 600 | 60 / 60 |
 
-From `vllm_metrics.csv` and `gpu.csv`, restricted to each level's measured window. Counters (uncached prompt tokens = Δ(prefix_cache_queries − prefix_cache_hits) / Δ ttft_count; preemptions) are deltas between the samples covering the window; gauges are the mean and max of the 1 Hz samples inside it. A level is **CACHED**, and not counted in the headline, under 90.0 uncached tokens per request: 0.9 × the prompt's 100-token unique part.
+From `vllm_metrics.csv` and `gpu.csv`, restricted to each level's measured window. Counters (uncached prompt tokens = Δ(prefix_cache_queries − prefix_cache_hits) / Δ ttft_count, or Δprompt_tokens / Δ ttft_count when the engine made no cache lookups because prefix caching is off; preemptions) are deltas between the samples covering the window; gauges are the mean and max of the 1 Hz samples inside it. A level is **CACHED**, and not counted in the headline, under 90.0 uncached tokens per request: 0.9 × the prompt's 100-token unique part.
 
 <!-- bench-report:end engine:interactive-baseline-20260928-015502 -->
 
@@ -211,7 +211,7 @@ A level meets the SLO when every bound holds (a value equal to the limit passes)
 | 192 | 1509.0 | ok | 20 | 142.4 / 153 | 47.8 / 90 | 96.3% / 99.9% | 600 / 600 | 60 / 60 |
 | 256 | 1509.0 | ok | 32 | 142.1 / 152 | 112.6 / 158 | 96.2% / 100.0% | 600 / 600 | 60 / 60 |
 
-From `vllm_metrics.csv` and `gpu.csv`, restricted to each level's measured window. Counters (uncached prompt tokens = Δ(prefix_cache_queries − prefix_cache_hits) / Δ ttft_count; preemptions) are deltas between the samples covering the window; gauges are the mean and max of the 1 Hz samples inside it. A level is **CACHED**, and not counted in the headline, under 1350.0 uncached tokens per request: 0.9 × the prompt's 1500-token unique part.
+From `vllm_metrics.csv` and `gpu.csv`, restricted to each level's measured window. Counters (uncached prompt tokens = Δ(prefix_cache_queries − prefix_cache_hits) / Δ ttft_count, or Δprompt_tokens / Δ ttft_count when the engine made no cache lookups because prefix caching is off; preemptions) are deltas between the samples covering the window; gauges are the mean and max of the 1 Hz samples inside it. A level is **CACHED**, and not counted in the headline, under 1350.0 uncached tokens per request: 0.9 × the prompt's 1500-token unique part.
 
 <!-- bench-report:end engine:throughput-baseline-20260928-014014 -->
 
@@ -291,7 +291,7 @@ A level meets the SLO when every bound holds (a value equal to the limit passes)
 | 128 | 113.0 | ok | 0 | 126.1 / 128 | 0.0 / 0 | 10.4% / 10.8% | 600 / 601 | 60 / 60 |
 | 256 | 113.0 | ok | 0 | 251.8 / 255 | 0.0 / 0 | 20.8% / 22.7% | 600 / 600 | 60 / 60 |
 
-From `vllm_metrics.csv` and `gpu.csv`, restricted to each level's measured window. Counters (uncached prompt tokens = Δ(prefix_cache_queries − prefix_cache_hits) / Δ ttft_count; preemptions) are deltas between the samples covering the window; gauges are the mean and max of the 1 Hz samples inside it. A level is **CACHED**, and not counted in the headline, under 90.0 uncached tokens per request: 0.9 × the prompt's 100-token unique part.
+From `vllm_metrics.csv` and `gpu.csv`, restricted to each level's measured window. Counters (uncached prompt tokens = Δ(prefix_cache_queries − prefix_cache_hits) / Δ ttft_count, or Δprompt_tokens / Δ ttft_count when the engine made no cache lookups because prefix caching is off; preemptions) are deltas between the samples covering the window; gauges are the mean and max of the 1 Hz samples inside it. A level is **CACHED**, and not counted in the headline, under 90.0 uncached tokens per request: 0.9 × the prompt's 100-token unique part.
 
 <!-- bench-report:end engine:interactive-a-mnbt8192-20260928-022649 -->
 
@@ -353,7 +353,7 @@ A level meets the SLO when every bound holds (a value equal to the limit passes)
 | 128 | 1489.4 | ok | 0 | 126.3 / 128 | 0.7 / 22 | 91.3% / 95.8% | 600 / 600 | 60 / 60 |
 | 192 | 1487.8 | ok | 44 | 135.7 / 147 | 54.5 / 86 | 97.9% / 100.0% | 600 / 600 | 60 / 60 |
 
-From `vllm_metrics.csv` and `gpu.csv`, restricted to each level's measured window. Counters (uncached prompt tokens = Δ(prefix_cache_queries − prefix_cache_hits) / Δ ttft_count; preemptions) are deltas between the samples covering the window; gauges are the mean and max of the 1 Hz samples inside it. A level is **CACHED**, and not counted in the headline, under 1350.0 uncached tokens per request: 0.9 × the prompt's 1500-token unique part.
+From `vllm_metrics.csv` and `gpu.csv`, restricted to each level's measured window. Counters (uncached prompt tokens = Δ(prefix_cache_queries − prefix_cache_hits) / Δ ttft_count, or Δprompt_tokens / Δ ttft_count when the engine made no cache lookups because prefix caching is off; preemptions) are deltas between the samples covering the window; gauges are the mean and max of the 1 Hz samples inside it. A level is **CACHED**, and not counted in the headline, under 1350.0 uncached tokens per request: 0.9 × the prompt's 1500-token unique part.
 
 <!-- bench-report:end engine:throughput-a-mnbt8192-20260928-023137 -->
 
@@ -468,7 +468,7 @@ A level meets the SLO when every bound holds (a value equal to the limit passes)
 | 128 | 112.9 | ok | 0 | 125.6 / 128 | 0.0 / 0 | 6.7% / 7.0% | 600 / 603 | 60 / 60 |
 | 256 | 112.9 | ok | 0 | 252.5 / 256 | 0.0 / 0 | 13.3% / 14.3% | 600 / 604 | 60 / 60 |
 
-From `vllm_metrics.csv` and `gpu.csv`, restricted to each level's measured window. Counters (uncached prompt tokens = Δ(prefix_cache_queries − prefix_cache_hits) / Δ ttft_count; preemptions) are deltas between the samples covering the window; gauges are the mean and max of the 1 Hz samples inside it. A level is **CACHED**, and not counted in the headline, under 90.0 uncached tokens per request: 0.9 × the prompt's 100-token unique part.
+From `vllm_metrics.csv` and `gpu.csv`, restricted to each level's measured window. Counters (uncached prompt tokens = Δ(prefix_cache_queries − prefix_cache_hits) / Δ ttft_count, or Δprompt_tokens / Δ ttft_count when the engine made no cache lookups because prefix caching is off; preemptions) are deltas between the samples covering the window; gauges are the mean and max of the 1 Hz samples inside it. A level is **CACHED**, and not counted in the headline, under 90.0 uncached tokens per request: 0.9 × the prompt's 100-token unique part.
 
 <!-- bench-report:end engine:interactive-b2-fp8-20260928-224420 -->
 
@@ -533,7 +533,7 @@ A level meets the SLO when every bound holds (a value equal to the limit passes)
 | 192 | 1502.3 | ok | 0 | 188.4 / 192 | 2.3 / 40 | 87.1% / 90.1% | 600 / 601 | 60 / 60 |
 | 256 | 1509.0 | ok | 24 | 206.4 / 220 | 47.8 / 103 | 95.5% / 100.0% | 600 / 601 | 60 / 60 |
 
-From `vllm_metrics.csv` and `gpu.csv`, restricted to each level's measured window. Counters (uncached prompt tokens = Δ(prefix_cache_queries − prefix_cache_hits) / Δ ttft_count; preemptions) are deltas between the samples covering the window; gauges are the mean and max of the 1 Hz samples inside it. A level is **CACHED**, and not counted in the headline, under 1350.0 uncached tokens per request: 0.9 × the prompt's 1500-token unique part.
+From `vllm_metrics.csv` and `gpu.csv`, restricted to each level's measured window. Counters (uncached prompt tokens = Δ(prefix_cache_queries − prefix_cache_hits) / Δ ttft_count, or Δprompt_tokens / Δ ttft_count when the engine made no cache lookups because prefix caching is off; preemptions) are deltas between the samples covering the window; gauges are the mean and max of the 1 Hz samples inside it. A level is **CACHED**, and not counted in the headline, under 1350.0 uncached tokens per request: 0.9 × the prompt's 1500-token unique part.
 
 <!-- bench-report:end engine:throughput-b2-fp8-20260928-225015 -->
 

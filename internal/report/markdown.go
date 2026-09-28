@@ -189,7 +189,7 @@ func EngineMarkdown(t *Table) string {
 	if len(t.Levels) > 0 {
 		c := &t.Levels[0].Engine.Check
 		fmt.Fprintf(&b, "\nFrom `vllm_metrics.csv` and `gpu.csv`, restricted to each level's measured window. "+
-			"Counters (uncached prompt tokens = Δ(prefix_cache_queries − prefix_cache_hits) / Δ ttft_count; preemptions) are deltas between the samples covering the window; "+
+			"Counters (uncached prompt tokens = Δ(prefix_cache_queries − prefix_cache_hits) / Δ ttft_count, or Δprompt_tokens / Δ ttft_count when the engine made no cache lookups because prefix caching is off; preemptions) are deltas between the samples covering the window; "+
 			"gauges are the mean and max of the 1 Hz samples inside it. "+
 			"A level is **CACHED**, and not counted in the headline, under %s uncached tokens per request: %s × the prompt's %d-token unique part.\n",
 			f(c.MinUncached, 1), strconv.FormatFloat(t.MinUncachedFraction, 'f', -1, 64), c.UniqueTokens)

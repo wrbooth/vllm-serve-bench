@@ -143,6 +143,7 @@ var telemetryColumns = []string{
 	"vllm:prefix_cache_hits_total",
 	"vllm:time_to_first_token_seconds_sum",
 	"vllm:time_to_first_token_seconds_count",
+	"vllm:prompt_tokens_total",
 	"error",
 }
 
@@ -176,19 +177,19 @@ func ParseTelemetry(r io.Reader) ([]Sample, error) {
 		if err != nil {
 			return nil, err
 		}
-		if rec[col[5]] != "" {
+		if rec[col[6]] != "" {
 			continue
 		}
 		ms, err := strconv.ParseInt(rec[col[0]], 10, 64)
 		if err != nil {
 			return nil, fmt.Errorf("line %d: t_unix_ms: %w", line, err)
 		}
-		var v [4]float64
+		var v [5]float64
 		for i := range v {
 			if v[i], err = strconv.ParseFloat(rec[col[i+1]], 64); err != nil {
 				return nil, fmt.Errorf("line %d: %s: %w", line, telemetryColumns[i+1], err)
 			}
 		}
-		out = append(out, Sample{At: time.UnixMilli(ms), PrefixQueries: v[0], PrefixHits: v[1], TTFTSum: v[2], TTFTCount: v[3]})
+		out = append(out, Sample{At: time.UnixMilli(ms), PrefixQueries: v[0], PrefixHits: v[1], TTFTSum: v[2], TTFTCount: v[3], PromptTokens: v[4]})
 	}
 }

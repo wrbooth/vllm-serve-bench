@@ -68,7 +68,33 @@ var (
 	engFrom   = Sample{At: t0, PrefixQueries: 1000, PrefixHits: 600, TTFTSum: 1.0, TTFTCount: 10}
 	engTo     = Sample{At: t0.Add(61 * time.Second), PrefixQueries: 3000, PrefixHits: 1000, TTFTSum: 1.5, TTFTCount: 26}
 	engCached = Sample{At: t0.Add(61 * time.Second), PrefixQueries: 3000, PrefixHits: 2560, TTFTSum: 1.5, TTFTCount: 26}
+	// Caching off: the cache counters never move, prompt tokens do.
+	engOffFrom = Sample{At: t0, TTFTSum: 1.0, TTFTCount: 10, PromptTokens: 5000}
+	engOffTo   = Sample{At: t0.Add(61 * time.Second), TTFTSum: 1.5, TTFTCount: 26, PromptTokens: 5000 + 16*433}
 )
+
+// With prefix caching off the cache counters stay at zero, so the
+// queries-minus-hits formula reads 0 and would flag every level. Regression:
+// Experiment B1's levels were all marked CACHED before this.
+func TestCheckEngineCountsEveryPromptTokenWhenCachingIsOff(t *testing.T) {
+	t.Parallel()
+	// Δprompt_tokens = 16 × 433, Δcount = 26 − 10 = 16: 433 per request,
+	// above 0.9 × 100 = 90, so the level is valid.
+	e := CheckEngine("side", "measured window", engOffFrom, engOffTo, true, 100, 0.9)
+	if !e.OK || e.Cached || e.UncachedPerRequest != 433 || !strings.Contains(e.Note, "caching off") {
+		t.Fatalf("CheckEngine = ok %v cached %v uncached %v note %q; want valid, 433, a caching-off note",
+			e.OK, e.Cached, e.UncachedPerRequest, e.Note)
+	}
+	// Caching on with cache hits is unchanged: the contaminated case still
+	// flags, prompt tokens notwithstanding.
+	cached := engCached
+	cached.PromptTokens = 5000 + 16*433
+	from := engFrom
+	from.PromptTokens = 5000
+	if e := CheckEngine("side", "measured window", from, cached, true, 100, 0.9); !e.Cached {
+		t.Fatalf("contaminated side with prompt tokens counted: cached %v, want true", e.Cached)
+	}
+}
 
 func TestCheckEngineFlagsASideThatPrefilledLessThanItsUniquePart(t *testing.T) {
 	t.Parallel()
