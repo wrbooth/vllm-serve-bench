@@ -154,3 +154,25 @@ replays the same shapes. Decisions, each pinned by a test:
 - **Idle connections per host raised to 1024.** net/http keeps 2 by default;
   at concurrency N a closed loop would redial N-2 connections after every
   request, and the redial lands inside TTFT.
+
+## [2026-09-27] decision | Closed-loop window: by attempt start, tail kept
+
+The runner ([internal/loadgen](../internal/loadgen/loadgen.go)) decides a
+request's window from the instant its worker chose to send it, the same
+instant that decides whether to send at all. Attempts started before
+`start + warmup` are counted as warmup and discarded; attempts started in the
+measured window are records, errors included; none start after it. Requests
+still in flight when the window closes run to completion and stay in the
+results. Cutting them off would drop exactly the slowest requests and make
+the tail look better than it was. RPS and output tok/s divide by the window
+length. In steady state the requests carried in from warmup balance the ones
+carried out past the end.
+
+Percentiles are nearest-rank, with the rank computed as `ceil(p·n/100)`, not
+`ceil(p/100·n)`. The second form is off by one rank for some (p, n) pairs in
+float64 (0.28·25 = 7.000000000000001). The test
+`RankMultipliesBeforeDividingToAvoidFloatError` in
+[internal/metrics](../internal/metrics/metrics_test.go) pins it.
+
+Not built yet: the `bench run` subcommand, which needs the prompt generator
+and the results-directory writer.
