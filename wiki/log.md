@@ -518,3 +518,32 @@ request at every level.
   The GPU is at its ~600 W power cap from c=64 up, so decode is compute- or
   power-bound at this batch size. That is an inference from the power and
   utilisation telemetry, not a profile.
+
+## [2026-09-27] decision | Interactive SLO: TTFT p95 ≤ 100 ms and TPOT p95 ≤ 25 ms
+
+Chosen after the baseline, from
+[interactive-baseline-20260928-015502](../results/baseline/interactive-baseline-20260928-015502/),
+per the contract. A request level meets the SLO when both p95s are within
+bounds; goodput counts output tokens only at levels that do.
+
+- **Where it bites:** the baseline meets it at c=64 (TTFT p95 73 ms, TPOT
+  p95 15.5 ms) and fails at c=128 (117 ms, 26.2 ms) on both metrics. The
+  SLO sits on the knee, so the highest compliant goodput is c=64's, and
+  every experiment has room to move it:
+  - A trades TTFT against TPOT through the scheduler budgets;
+  - B1 adds about 300 prefill tokens per request;
+  - B2 speeds up decode.
+- **Why these numbers:** 25 ms per token is 40 tok/s per stream, well above
+  reading speed. 100 ms to first token reads as instant. Both are user-facing
+  budgets, not fitted to a curve.
+- **Alternatives considered:**
+  - Looser (TTFT 250 ms, TPOT 50 ms): its boundary falls between c=128 and
+    c=256, which have the same throughput, so no experiment could show a
+    goodput gain.
+  - Tail (p99 150 ms, 20 ms): the same knee, but each p99 rests on about 20
+    samples.
+- **Known weakness, to state in the write-up:** c=128's TPOT p95 is 26.2 ms,
+  5% over the bound. A small TPOT improvement brings c=128 inside and
+  roughly adds 19% goodput, which would overstate a small effect. Each
+  experiment reports its per-level p95s next to the pass/fail, so the
+  margin stays visible.
