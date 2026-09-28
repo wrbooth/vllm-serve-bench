@@ -115,6 +115,11 @@ func TestRunWritesAConsistentRunDirectory(t *testing.T) {
 		t.Errorf("host = %+v with --gpu-sampler=false; want none", cfg.Host)
 	}
 	checkTelemetry(t, d.path)
+	// The prefix cache was emptied once before each level.
+	if srv.Resets() != 2 || !d.summary.Levels[0].PrefixCacheReset || !d.summary.Levels[1].PrefixCacheReset {
+		t.Errorf("resets %d, level flags %v %v; want 2 and both true", srv.Resets(),
+			d.summary.Levels[0].PrefixCacheReset, d.summary.Levels[1].PrefixCacheReset)
+	}
 	if cfg.Flags["duration"] != "250ms" || cfg.Flags["natural-stop"] != "false" || cfg.Flags["request-timeout"] != "5m0s" {
 		t.Errorf("flags = %v; want every flag, defaults included", cfg.Flags)
 	}
@@ -214,6 +219,29 @@ func TestRunWarnsWhenEngineFactsAreMissing(t *testing.T) {
 	}
 	if fa := d.config.Engine.Facts; fa == nil || fa.KVCacheTokens != nil || fa.MaxNumSeqs != nil {
 		t.Errorf("facts %+v; want recorded but empty", fa)
+	}
+}
+
+// An engine without dev mode cannot reset its cache: the run stops before
+// measuring anything rather than report numbers from a cache it cannot vouch
+// for. Turning the reset off is allowed, and leaves a warning.
+func TestRunNeedsAPrefixCacheResetOrSaysItHadNone(t *testing.T) {
+	t.Parallel()
+	srv := calibratedFake(t)
+	srv.NoDevMode, srv.Tokens = true, 4
+	code, _, stderr := runBench(t, runArgs(serve(t, srv), t.TempDir(), "--concurrency", "1")...)
+	if code != 1 || !strings.Contains(stderr, "VLLM_SERVER_DEV_MODE=1") || srv.Requests() != 0 {
+		t.Errorf("exit %d, %d requests, stderr %q; want 1, none sent, and the dev-mode hint", code, srv.Requests(), stderr)
+	}
+
+	out := t.TempDir()
+	code, stdout, stderr := runBench(t, runArgs(serve(t, srv), out, "--concurrency", "1", "--reset-prefix-cache=false")...)
+	if code != 0 {
+		t.Fatalf("exit %d, stderr %q", code, stderr)
+	}
+	d := readRunDir(t, out, stdout)
+	if len(d.config.Warnings) != 1 || !strings.Contains(d.config.Warnings[0], "prefix cache not reset") || d.summary.Levels[0].PrefixCacheReset {
+		t.Errorf("warnings %q, level reset %v; want the no-reset warning and false", d.config.Warnings, d.summary.Levels[0].PrefixCacheReset)
 	}
 }
 

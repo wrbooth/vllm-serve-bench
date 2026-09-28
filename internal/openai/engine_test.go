@@ -103,3 +103,32 @@ func TestWaitReadyGivesUpWhenTheContextEnds(t *testing.T) {
 		t.Errorf("WaitReady = %v, want DeadlineExceeded wrapping the last 503", err)
 	}
 }
+
+func TestResetPrefixCacheRetriesWhileTheEngineRefuses(t *testing.T) {
+	t.Parallel()
+	// vLLM answers success=false while running requests hold blocks.
+	srv := &fakeserver.Server{ResetRefusals: 3}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := newFake(t, srv).ResetPrefixCache(ctx, time.Millisecond); err != nil {
+		t.Fatal(err)
+	}
+	if srv.Resets() != 1 {
+		t.Fatalf("resets = %d, want 1 after 3 refusals", srv.Resets())
+	}
+}
+
+func TestResetPrefixCacheFailsWithoutDevModeOrWhenRefusedToTheEnd(t *testing.T) {
+	t.Parallel()
+	var se *openai.StatusError
+	err := newFake(t, &fakeserver.Server{NoDevMode: true}).ResetPrefixCache(context.Background(), time.Millisecond)
+	if !errors.As(err, &se) || se.Code != http.StatusNotFound {
+		t.Errorf("without dev mode: %v, want a 404 StatusError", err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Millisecond)
+	defer cancel()
+	err = newFake(t, &fakeserver.Server{ResetRefusals: 1 << 30}).ResetPrefixCache(ctx, time.Millisecond)
+	if !errors.Is(err, openai.ErrResetRefused) {
+		t.Errorf("always refused: %v, want ErrResetRefused", err)
+	}
+}

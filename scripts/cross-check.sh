@@ -48,6 +48,10 @@ printf '%s\n' "${vllm_args[*]}" >"$out/vllm/command.txt"
 "$bench" sample --base-url "$base" --out "$out/vllm" &
 sampler=$!
 docker exec vsb-vllm rm -rf /tmp/vsb-verify
+# Same starting state as `bench run`, which resets before each level:
+# nothing from the previous run is left in the prefix cache.
+curl -fsS -X POST "$base/reset_prefix_cache" | tee "$out/vllm/reset.json"
+echo
 docker exec vsb-vllm "${vllm_args[@]}" 2>&1 | tee "$out/vllm/stdout.txt"
 kill -INT "$sampler"
 wait "$sampler" || true
