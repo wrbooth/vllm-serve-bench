@@ -26,9 +26,9 @@ Slides are drafted 2026-09-29.
 | Baseline sweeps, both profiles | `done` | `results/baseline/`, `scripts/sweep.sh` |
 | SLO chosen from baseline | `done` (interactive TTFT p95 ≤ 100 ms and TPOT p95 ≤ 25 ms; throughput E2E p95 ≤ 15 s; see [log.md](log.md)); machine-readable in `docs/slo.json` | `docs/slo.json`, `docs/03-results.md` |
 | `bench report`: SLO tables, goodput, engine-side window stats, comparisons, docs/03 marker blocks | `done` (SVG charts cut) | `internal/report`, `cmd/bench/report.go` |
-| Experiment A — batching | `todo` | |
+| Experiment A — batching | `done` (null on goodput; faster long-prompt admission) | `results/a-mnbt8192/`, `docs/03` |
 | Experiment B1 — prefix caching | `todo` | |
-| Experiment B2 — self-made FP8 checkpoint | `todo` | `scripts/quantize/` |
+| Experiment B2 — self-made FP8 checkpoint | `done` (large goodput gain; quality check level with bf16; not yet published to HF) | `scripts/quantize/`, `results/b2-fp8/`, `results/quality/`, `docs/03` |
 | Experiment C — FP8 KV cache | `todo` (stretch) | |
 | Dockerfile + GHCR publish in CI | `todo` | |
 | Kubernetes manifests (kubeconform in CI) | `todo` | `deploy/k8s/` |

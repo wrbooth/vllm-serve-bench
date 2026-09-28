@@ -701,3 +701,34 @@ Hypothesis, recorded before any serving data:
   greedy outputs against the bf16 model.
 - **What would refute it:** no TPOT gain at c=1, or no throughput gain past the
   baseline knee.
+
+## [2026-09-28] work | Experiment B2 result: large gains; one prediction refuted; quality level with bf16
+
+Data: [results/b2-fp8/](../results/b2-fp8/), compared in docs/03 by
+`bench report` against the baseline. Every level passes the engine check,
+with 0 errors and 0 prompt-token mismatches. The figures below were read off
+the generated tables.
+
+- **Decode speed:** TPOT at c=1 fell from 9.5 to 6.1 ms (−36%), less than
+  half as predicted, since only the weight bytes halve.
+- **KV pool:** warm, it is 354,832 tokens against 241,680 (+47%).
+- **Interactive:** throughput is up 36–58% across the sweep. c=128 now meets
+  the SLO with margin (TTFT p95 87 ms, TPOT p95 18.9 ms), so max compliant
+  goodput goes from 4,140 tok/s at c=64 to 6,898 at c=128 (+66.6%).
+- **Throughput:** up 24–61% per level, but the SLO boundary does not move.
+  c=128's E2E p95 is 18.4 s against 15 s, so that prediction was wrong. Max
+  compliant goodput is 1,584 → 2,380 tok/s at the same c=64 (+50.3%).
+  Queueing TTFT at c=192 falls from 10.1 s to 0.86 s p95.
+- **Trade-off not predicted:** at throughput c=256 the larger pool runs about
+  206 sequences against about 150, so TPOT p95 is 14.7% worse there even
+  though E2E improves.
+- **Quality** ([results/quality/report.md](../results/quality/report.md)):
+  - 28 of 30 exact-answer items correct for both models. The same two missed
+    items were genuine model errors, wrong the same way in both ("deserts",
+    and "Monday" for ten days after Monday).
+  - 0 items changed correctness.
+  - 31 of 40 replies were identical; mean common prefix 0.818.
+  - This is a smoke-level check on a small hand-written set, not an eval.
+- **Not done:** publishing the checkpoint to Hugging Face. It is public and
+  under the owner's account, so it waits for the owner's go-ahead, and the
+  HF token's write scope is still unchecked.

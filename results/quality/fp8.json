@@ -1,0 +1,198 @@
+{
+  "model": "/models/Qwen2.5-7B-Instruct-FP8-Dynamic",
+  "max_tokens": 128,
+  "exact": [
+    {
+      "q": "What is 17 multiplied by 23? Reply with only the number.",
+      "a": "391",
+      "reply": "391"
+    },
+    {
+      "q": "What is 144 divided by 12? Reply with only the number.",
+      "a": "12",
+      "reply": "12"
+    },
+    {
+      "q": "What is 2 to the power of 10? Reply with only the number.",
+      "a": "1024",
+      "reply": "1024"
+    },
+    {
+      "q": "What is 1000 minus 387? Reply with only the number.",
+      "a": "613",
+      "reply": "613"
+    },
+    {
+      "q": "What is the square root of 169? Reply with only the number.",
+      "a": "13",
+      "reply": "13"
+    },
+    {
+      "q": "How many minutes are in 3.5 hours? Reply with only the number.",
+      "a": "210",
+      "reply": "210"
+    },
+    {
+      "q": "What is 15% of 240? Reply with only the number.",
+      "a": "36",
+      "reply": "36"
+    },
+    {
+      "q": "A train travels 180 km in 2 hours. What is its average speed in km/h? Reply with only the number.",
+      "a": "90",
+      "reply": "90"
+    },
+    {
+      "q": "What is the capital of Australia? Reply with one word.",
+      "a": "Canberra",
+      "reply": "Canberra"
+    },
+    {
+      "q": "What is the capital of Canada? Reply with one word.",
+      "a": "Ottawa",
+      "reply": "Ottawa"
+    },
+    {
+      "q": "What is the capital of Japan? Reply with one word.",
+      "a": "Tokyo",
+      "reply": "Tokyo"
+    },
+    {
+      "q": "What is the capital of Kenya? Reply with one word.",
+      "a": "Nairobi",
+      "reply": "Nairobi"
+    },
+    {
+      "q": "What is the chemical symbol for gold? Reply with only the symbol.",
+      "a": "Au",
+      "reply": "Au"
+    },
+    {
+      "q": "What is the chemical symbol for sodium? Reply with only the symbol.",
+      "a": "Na",
+      "reply": "Na"
+    },
+    {
+      "q": "How many sides does a hexagon have? Reply with only the number.",
+      "a": "6",
+      "reply": "6"
+    },
+    {
+      "q": "How many bits are in a byte? Reply with only the number.",
+      "a": "8",
+      "reply": "8"
+    },
+    {
+      "q": "Which planet is closest to the Sun? Reply with one word.",
+      "a": "Mercury",
+      "reply": "Mercury"
+    },
+    {
+      "q": "Which planet is known as the Red Planet? Reply with one word.",
+      "a": "Mars",
+      "reply": "Mars"
+    },
+    {
+      "q": "What is the largest ocean on Earth? Reply with one word.",
+      "a": "Pacific",
+      "reply": "Pacific"
+    },
+    {
+      "q": "What gas do plants absorb from the air for photosynthesis? Reply with its chemical formula only.",
+      "a": "CO2",
+      "reply": "CO2"
+    },
+    {
+      "q": "What is the boiling point of water at sea level in degrees Celsius? Reply with only the number.",
+      "a": "100",
+      "reply": "100"
+    },
+    {
+      "q": "Who wrote the play Romeo and Juliet? Reply with the surname only.",
+      "a": "Shakespeare",
+      "reply": "Shakespeare"
+    },
+    {
+      "q": "In what year did the first crewed Moon landing take place? Reply with only the year.",
+      "a": "1969",
+      "reply": "1969"
+    },
+    {
+      "q": "What is the next number in the sequence 2, 4, 8, 16? Reply with only the number.",
+      "a": "32",
+      "reply": "32"
+    },
+    {
+      "q": "Reverse the word 'stressed'. Reply with only the reversed word.",
+      "a": "desserts",
+      "reply": "deserts"
+    },
+    {
+      "q": "What is the plural of 'mouse' when it refers to the animal? Reply with one word.",
+      "a": "mice",
+      "reply": "Mice"
+    },
+    {
+      "q": "In Python, what does len([3, 1, 4, 1, 5]) return? Reply with only the number.",
+      "a": "5",
+      "reply": "5"
+    },
+    {
+      "q": "In Python, what is 7 // 2? Reply with only the number.",
+      "a": "3",
+      "reply": "3"
+    },
+    {
+      "q": "What HTTP status code means 'Not Found'? Reply with only the number.",
+      "a": "404",
+      "reply": "404"
+    },
+    {
+      "q": "If today is Monday, what day is it in 10 days? Reply with one word.",
+      "a": "Thursday",
+      "reply": "Monday"
+    }
+  ],
+  "open": [
+    {
+      "q": "Explain in three sentences how a hash table handles collisions.",
+      "reply": "A hash table handles collisions by using techniques such as chaining or open addressing. In chaining, each hash table slot contains a linked list of items that hash to the same index. In open addressing, when a collision occurs, the algorithm probes other slots until an empty slot is found."
+    },
+    {
+      "q": "Write a haiku about a server room at night.",
+      "reply": "In the server room dark,\nWhispers of fans, hums of light—\nNight guards data dreams."
+    },
+    {
+      "q": "Summarize the causes of inflation in one paragraph.",
+      "reply": "Inflation can be caused by a variety of factors, including an increase in the money supply that outpaces economic growth, rising costs of production due to higher wages or increased prices of raw materials, and demand-pull inflation where overall demand for goods and services exceeds the economy's ability to produce them. Additionally, supply shocks, such as disruptions in global markets or natural disasters, can also lead to inflation by reducing the supply of certain goods and driving up their prices."
+    },
+    {
+      "q": "Give three tips for writing clear commit messages.",
+      "reply": "Certainly! Writing clear commit messages is crucial for maintaining a clean and understandable history in your version control system. Here are three tips to help you write effective commit messages:\n\n1. **Be Descriptive**: Start your commit message with a concise but descriptive summary line that explains the purpose of the change. This should be brief (typically 50 characters or less) but informative enough to convey what was changed. Follow this with a blank line, and then provide a more detailed explanation if necessary. For example:\n   ```\n   Fix typo in documentation\n\n   Corrected a spelling error in the README file.\n   ```\n\n2. **Use the"
+    },
+    {
+      "q": "Describe the difference between TCP and UDP for a beginner.",
+      "reply": "Sure! Let's break down the differences between TCP (Transmission Control Protocol) and UDP (User Datagram Protocol) in a simple way:\n\n### 1. **Connection-Oriented vs. Connectionless**\n\n- **TCP**: This is a connection-oriented protocol. Before sending data, TCP establishes a connection with the receiving end using a three-way handshake process. This ensures that both ends are ready to communicate before any data is sent.\n  \n- **UDP**: This is a connectionless protocol. It doesn't establish a connection before sending data. Instead, it sends data packets directly to the recipient without prior setup.\n\n### 2. **Rel"
+    },
+    {
+      "q": "Write a Python function that returns the n-th Fibonacci number iteratively.",
+      "reply": "Certainly! Below is a Python function that calculates the n-th Fibonacci number using an iterative approach:\n\n```python\ndef fibonacci(n):\n    if n <= 0:\n        return \"Input should be a positive integer.\"\n    elif n == 1:\n        return 0\n    elif n == 2:\n        return 1\n    \n    a, b = 0, 1\n    for _ in range(2, n):\n        a, b = b, a + b\n    return b\n\n# Example usage:\nn = 10\nprint(f\"The {n}-th Fibonacci number is: {fibonacci(n"
+    },
+    {
+      "q": "What are the trade-offs of microservices compared to a monolith?",
+      "reply": "Microservices and monolithic architectures each have their own set of advantages and disadvantages. Here are some key trade-offs when comparing microservices to monoliths:\n\n### 1. **Scalability**\n   - **Monoliths**: Scaling can be more challenging because you need to scale the entire application at once. This often requires horizontal scaling (adding more servers) or vertical scaling (increasing the power of existing servers).\n   - **Microservices**: Each service can be scaled independently based on its specific needs. This allows for more granular control over resource allocation and can lead to more efficient use of resources.\n\n### 2. **"
+    },
+    {
+      "q": "Explain what a GPU is and why it helps with machine learning.",
+      "reply": "A GPU, or Graphics Processing Unit, is a specialized type of hardware designed to handle the rapid mathematical calculations required for rendering graphics and images. Originally developed for gaming and video editing, GPUs have become increasingly important in the field of machine learning due to their ability to perform many operations in parallel.\n\n### What is a GPU?\n\n1. **Architecture**: Unlike CPUs (Central Processing Units), which are optimized for handling a wide variety of tasks sequentially, GPUs are designed to handle many tasks simultaneously. They contain thousands of smaller, more efficient cores that can process data in parallel.\n\n2. **Parallel Processing**: GPUs excel at performing the same operation on multiple"
+    },
+    {
+      "q": "Draft a polite email declining a meeting invitation.",
+      "reply": "Subject: Declining Meeting Invitation\n\nDear [Recipient's Name],\n\nI hope this message finds you well.\n\nThank you for extending the invitation to meet on [date and time]. I appreciate your consideration of me and value our professional relationship.\n\nUnfortunately, my schedule is already quite full for the upcoming week, and I will not be able to attend the meeting as planned. I understand that this may cause some inconvenience, and I apologize for any disruption this might cause.\n\nIf it is at all possible, I would like to suggest an alternative date or time that works better for me. Could we perhaps arrange a meeting next Tuesday at 10 AM"
+    },
+    {
+      "q": "List the steps to make a cup of pour-over coffee.",
+      "reply": "Sure! Making a delicious cup of pour-over coffee is a great way to enjoy a clean and flavorful brew. Here are the steps to make a perfect pour-over coffee:\n\n### Ingredients and Equipment Needed:\n- Freshly roasted coffee beans\n- A coffee grinder (if you're using whole beans)\n- A pour-over coffee maker (e.g., Hario V60, Chemex, or any other preferred model)\n- Filter paper for your pour-over device\n- A kettle with a gooseneck spout for precise pouring\n- A scale (optional but recommended for precision)\n- A timer (optional but recommended for timing the"
+    }
+  ]
+}
