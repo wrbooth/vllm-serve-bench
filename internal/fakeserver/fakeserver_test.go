@@ -104,3 +104,74 @@ func dataLines(t *testing.T, r io.Reader) []string {
 	}
 	return out
 }
+
+// The toy tokenizer: one token per field, MultiToken words count their
+// value, and a chat adds ChatOverhead.
+func TestServerTokenizeCountsWithTheToyTokenizer(t *testing.T) {
+	t.Parallel()
+	s := &Server{ChatOverhead: 10, MultiToken: map[string]int{"supercalifragilistic": 4}}
+	tests := []struct {
+		name string
+		body string
+		want string
+		code int
+	}{
+		// " alpha beta gamma" = 3 fields
+		{name: "PromptCountsFields", body: `{"model":"m","prompt":" alpha beta gamma"}`, want: `"count":3`, code: 200},
+		// 1 + 4 = 5
+		{name: "MultiTokenWordsCountTheirValue", body: `{"prompt":"a supercalifragilistic"}`, want: `"count":5`, code: 200},
+		// 10 + 2 ("be" "terse.") + 2 ("Say" "hi.") = 14
+		{name: "ChatAddsOverhead", body: `{"messages":[{"role":"system","content":"be terse."},{"role":"user","content":"Say hi."}]}`, want: `"count":14`, code: 200},
+		{name: "NeitherIs400", body: `{"model":"m"}`, code: 400},
+		{name: "BothIs400", body: `{"prompt":"a","messages":[]}`, code: 400},
+		{name: "MalformedIs400", body: `{`, code: 400},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			rec := httptest.NewRecorder()
+			s.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/tokenize", strings.NewReader(tt.body)))
+			if rec.Code != tt.code || !strings.Contains(rec.Body.String(), tt.want) {
+				t.Errorf("status %d body %q; want %d containing %q", rec.Code, rec.Body.String(), tt.code, tt.want)
+			}
+		})
+	}
+	if s.Requests() != 0 {
+		t.Errorf("Requests() = %d; /tokenize must not count as a chat request", s.Requests())
+	}
+}
+
+func TestServerModelsIsUnavailableForUnreadyForCalls(t *testing.T) {
+	t.Parallel()
+	s := &Server{UnreadyFor: 2, Models: []string{"a", "b"}}
+	var codes []int
+	var last string
+	for range 3 {
+		rec := httptest.NewRecorder()
+		s.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/v1/models", http.NoBody))
+		codes = append(codes, rec.Code)
+		last = rec.Body.String()
+	}
+	if codes[0] != 503 || codes[1] != 503 || codes[2] != 200 {
+		t.Errorf("status codes %v, want [503 503 200]", codes)
+	}
+	if !strings.Contains(last, `"id":"a"`) || !strings.Contains(last, `"id":"b"`) {
+		t.Errorf("models body %q does not list a and b", last)
+	}
+	if s.Requests() != 0 {
+		t.Errorf("Requests() = %d; /v1/models must not count as a chat request", s.Requests())
+	}
+}
+
+// With CountPrompt, usage.prompt_tokens is the toy count of the messages:
+// 3 overhead + 2 fields = 5.
+func TestServerCountPromptReportsTheToyCountInUsage(t *testing.T) {
+	t.Parallel()
+	s := &Server{ChatOverhead: 3, CountPrompt: true, PromptTokens: 99, Tokens: 1}
+	rec := httptest.NewRecorder()
+	body := `{"stream":true,"stream_options":{"include_usage":true},"messages":[{"role":"user","content":"two words"}]}`
+	s.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/v1/chat/completions", strings.NewReader(body)))
+	if !strings.Contains(rec.Body.String(), `"prompt_tokens":5,`) {
+		t.Errorf("stream %q does not report prompt_tokens 5", rec.Body.String())
+	}
+}
