@@ -53,13 +53,18 @@ type ProfileConfig struct {
 	FixedSource string `json:"fixed_source"`
 	FixedModel  string `json:"fixed_model"`
 	// PredictedPromptTokens = FixedTokens + SharedWords + UniqueWords.
-	PredictedPromptTokens int     `json:"predicted_prompt_tokens"`
-	WordListSHA256        string  `json:"word_list_sha256"`
-	WordListSize          int     `json:"word_list_size"`
-	MaxTokens             int     `json:"max_tokens"`
-	IgnoreEOS             bool    `json:"ignore_eos"`
-	Temperature           float64 `json:"temperature"`
-	RepetitionPenalty     float64 `json:"repetition_penalty"`
+	PredictedPromptTokens int    `json:"predicted_prompt_tokens"`
+	WordListSHA256        string `json:"word_list_sha256"`
+	WordListSize          int    `json:"word_list_size"`
+	// MaxTokens is the mean output length; each request's own is drawn
+	// uniformly from OutputTokensMin..OutputTokensMax (inclusive).
+	MaxTokens         int     `json:"max_tokens"`
+	OutputRangeRatio  float64 `json:"output_range_ratio"`
+	OutputTokensMin   int     `json:"output_tokens_min"`
+	OutputTokensMax   int     `json:"output_tokens_max"`
+	IgnoreEOS         bool    `json:"ignore_eos"`
+	Temperature       float64 `json:"temperature"`
+	RepetitionPenalty float64 `json:"repetition_penalty"`
 }
 
 // EngineConfig identifies the engine under test. Image and Argv are

@@ -251,14 +251,88 @@ func TestNewGeneratorRejectsInvalidInput(t *testing.T) {
 	}
 }
 
+func TestOutputBoundsMatchVLLMRandomRangeRatio(t *testing.T) {
+	t.Parallel()
+	// vllm/benchmarks/datasets/utils.py: floor(L*(1-r)) .. ceil(L*(1+r)),
+	// each at least 1.
+	cases := []struct {
+		maxTokens int
+		ratio     float64
+		lo, hi    int
+	}{
+		{128, 0.25, 96, 160},  // 128*0.75 = 96, 128*1.25 = 160
+		{256, 0.25, 192, 320}, // 256*0.75 = 192, 256*1.25 = 320
+		{10, 0.25, 7, 13},     // floor(7.5) = 7, ceil(12.5) = 13
+		{128, 0, 128, 128},    // fixed length
+		{2, 1, 1, 4},          // floor(0) = 0 -> 1, ceil(4) = 4
+	}
+	for _, tc := range cases {
+		p := Profile{MaxTokens: tc.maxTokens, OutputRangeRatio: tc.ratio}
+		if lo, hi := p.OutputBounds(); lo != tc.lo || hi != tc.hi {
+			t.Errorf("OutputBounds(%d, %v) = %d..%d, want %d..%d", tc.maxTokens, tc.ratio, lo, hi, tc.lo, tc.hi)
+		}
+	}
+}
+
+func TestOutputTokensAreSeededUniformAndCoverBothBounds(t *testing.T) {
+	t.Parallel()
+	g := testGenerator(t, "interactive", 0, 1)
+	same := testGenerator(t, "interactive", 0, 1)
+	other := testGenerator(t, "interactive", 0, 2)
+	prof := g.Profile()
+	lo, hi := prof.OutputBounds()
+	// 20,000 draws over 65 values: each value's expected count is ~308, so
+	// both endpoints appearing is certain in practice, and a mean within 1
+	// token of 128 is ~20 standard errors of slack (sd of U{96..160} is
+	// ~18.8; its standard error over 20,000 draws is ~0.13).
+	const n = 20000
+	seen := map[int]bool{}
+	sum, differ := 0, 0
+	for i := range uint64(n) {
+		k := g.OutputTokens(i)
+		if k < lo || k > hi {
+			t.Fatalf("OutputTokens(%d) = %d, outside %d..%d", i, k, lo, hi)
+		}
+		if same.OutputTokens(i) != k {
+			t.Fatalf("OutputTokens(%d) not reproducible under the same seed", i)
+		}
+		if other.OutputTokens(i) != k {
+			differ++
+		}
+		seen[k] = true
+		sum += k
+	}
+	if !seen[lo] || !seen[hi] || len(seen) != hi-lo+1 {
+		t.Errorf("drew %d distinct lengths (lo seen %v, hi seen %v), want all %d", len(seen), seen[lo], seen[hi], hi-lo+1)
+	}
+	if mean := float64(sum) / n; mean < 127 || mean > 129 {
+		t.Errorf("mean output length %.2f, want 128 +- 1", mean)
+	}
+	// A different seed agrees by chance 1 time in 65: ~308 of 20,000.
+	if differ < n*9/10 {
+		t.Errorf("seed 2 matched seed 1 on %d of %d lengths; want independent streams", n-differ, n)
+	}
+}
+
 func TestRequestHoldsOutputLengthAndSetsGreedySampling(t *testing.T) {
 	t.Parallel()
 	g := testGenerator(t, "throughput", 0, 1)
 	for _, natural := range []bool{false, true} {
 		r := g.Request("m", 4, natural)
-		if r.Model != "m" || r.MaxTokens != 256 || r.IgnoreEOS == natural {
-			t.Errorf("naturalStop=%v: model %q max_tokens %d ignore_eos %v; want m, 256, %v",
-				natural, r.Model, r.MaxTokens, r.IgnoreEOS, !natural)
+		if r.Model != "m" || r.MaxTokens != g.OutputTokens(4) || r.IgnoreEOS == natural {
+			t.Errorf("naturalStop=%v: model %q max_tokens %d ignore_eos %v; want m, %d, %v",
+				natural, r.Model, r.MaxTokens, r.IgnoreEOS, g.OutputTokens(4), !natural)
+		}
+		// Every request carries its own drawn length, not the mean.
+		lengths := map[int]bool{}
+		for i := range uint64(50) {
+			if got := g.Request("m", i, natural).MaxTokens; got != g.OutputTokens(i) {
+				t.Fatalf("request %d max_tokens %d, want its drawn length %d", i, got, g.OutputTokens(i))
+			}
+			lengths[g.OutputTokens(i)] = true
+		}
+		if len(lengths) < 10 {
+			t.Errorf("50 requests used %d distinct max_tokens; want the drawn spread", len(lengths))
 		}
 		if r.Temperature == nil || *r.Temperature != 0 || r.RepetitionPenalty == nil || *r.RepetitionPenalty != 1 {
 			t.Errorf("sampling temperature %v repetition_penalty %v; want explicit 0 and 1", r.Temperature, r.RepetitionPenalty)

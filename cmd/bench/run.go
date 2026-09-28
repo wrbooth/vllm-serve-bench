@@ -205,6 +205,7 @@ func run(ctx context.Context, f *runFlags, levels []int, cfg *results.Config, st
 
 func profileConfig(g *prompts.Generator, v *prompts.Vocab, naturalStop bool) results.ProfileConfig {
 	p := g.Profile()
+	lo, hi := p.OutputBounds()
 	return results.ProfileConfig{
 		Name:                  p.Name,
 		SharedWords:           p.SharedWords,
@@ -216,6 +217,9 @@ func profileConfig(g *prompts.Generator, v *prompts.Vocab, naturalStop bool) res
 		WordListSHA256:        prompts.WordsSHA256(v.Words),
 		WordListSize:          len(v.Words),
 		MaxTokens:             p.MaxTokens,
+		OutputRangeRatio:      p.OutputRangeRatio,
+		OutputTokensMin:       lo,
+		OutputTokensMax:       hi,
 		IgnoreEOS:             !naturalStop,
 		Temperature:           prompts.Temperature,
 		RepetitionPenalty:     prompts.RepetitionPenalty,

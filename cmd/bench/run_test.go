@@ -124,6 +124,9 @@ func TestRunWritesAConsistentRunDirectory(t *testing.T) {
 	v, _ := prompts.Embedded()
 	// interactive: fixed + 300 shared + 100 unique words.
 	predicted := v.Fixed.Profiles["interactive"] + 400
+	if p := cfg.Profile; p.OutputRangeRatio != 0.25 || p.OutputTokensMin != 96 || p.OutputTokensMax != 160 {
+		t.Errorf("profile output range %v %d..%d, want 0.25, 96..160", p.OutputRangeRatio, p.OutputTokensMin, p.OutputTokensMax)
+	}
 	if p := cfg.Profile; p.PredictedPromptTokens != predicted || !p.IgnoreEOS || p.MaxTokens != 128 || p.WordListSHA256 != prompts.WordsSHA256(v.Words) {
 		t.Errorf("profile = %+v, want predicted %d, ignore_eos, 128 max tokens, the embedded list's hash", p, predicted)
 	}

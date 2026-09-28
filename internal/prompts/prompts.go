@@ -21,6 +21,7 @@ package prompts
 
 import (
 	"fmt"
+	"math"
 	"math/rand/v2"
 	"slices"
 	"strings"
@@ -47,9 +48,16 @@ type Profile struct {
 	UserLead string
 	// UniqueWords follow UserLead and differ for every request index.
 	UniqueWords int
-	// MaxTokens is the output length (held fixed with ignore_eos unless the
-	// run uses natural stop).
+	// MaxTokens is the mean output length. Each request's own length is
+	// drawn from OutputBounds (see OutputTokens) and held with ignore_eos
+	// unless the run uses natural stop.
 	MaxTokens int
+	// OutputRangeRatio spreads the output length around MaxTokens, as
+	// vllm bench serve's --random-range-ratio does. A fixed length makes a
+	// closed loop's workers finish in lockstep, and median TTFT then depends
+	// on how the arrivals happen to line up with the engine's steps (see
+	// wiki/log.md, "Cross-check"). 0 means a fixed length.
+	OutputRangeRatio float64
 	// Sweep is the default concurrency list for `bench run`.
 	Sweep []int
 }
@@ -63,14 +71,18 @@ var profiles = []Profile{
 		UserLead:    "Question:",
 		UniqueWords: 100,
 		MaxTokens:   128,
-		Sweep:       []int{1, 2, 4, 8, 16, 32},
+		// 96 to 160 tokens.
+		OutputRangeRatio: 0.25,
+		Sweep:            []int{1, 2, 4, 8, 16, 32},
 	},
 	{
 		Name:        "throughput",
 		UserLead:    "Summarize the following document in one paragraph.\n\nDocument:",
 		UniqueWords: 1500,
 		MaxTokens:   256,
-		Sweep:       []int{8, 16, 32, 64, 128, 192, 256},
+		// 192 to 320 tokens.
+		OutputRangeRatio: 0.25,
+		Sweep:            []int{8, 16, 32, 64, 128, 192, 256},
 	},
 }
 
@@ -122,6 +134,7 @@ const (
 	partShared uint64 = iota + 1
 	partDigits
 	partUnique
+	partOutput // appended last: reordering would change every existing prompt
 )
 
 // Generator builds the prompts of one profile under one seed. It is
@@ -201,15 +214,37 @@ func (g *Generator) Messages(index uint64) []openai.Message {
 	return append(msgs, openai.Message{Role: "user", Content: b.String()})
 }
 
-// Request returns the chat request for index: the profile's output length
-// held fixed with ignore_eos unless naturalStop, and explicit greedy
+// OutputBounds is the inclusive range output lengths are drawn from, with
+// vllm bench serve's rounding: floor(MaxTokens·(1−r)) to
+// ceil(MaxTokens·(1+r)), at least 1, so the cross-check compares like
+// with like.
+func (p *Profile) OutputBounds() (lo, hi int) {
+	m := float64(p.MaxTokens)
+	lo = max(int(math.Floor(m*(1-p.OutputRangeRatio))), 1)
+	hi = max(int(math.Ceil(m*(1+p.OutputRangeRatio))), 1)
+	return lo, hi
+}
+
+// OutputTokens is request index's output length: uniform over OutputBounds,
+// drawn from its own seeded stream, so it is reproducible and independent of
+// the prompt text.
+func (g *Generator) OutputTokens(index uint64) int {
+	lo, hi := g.profile.OutputBounds()
+	if lo == hi {
+		return lo
+	}
+	return lo + rngFor(g.seed, partOutput, index).IntN(hi-lo+1)
+}
+
+// Request returns the chat request for index: its output length (see
+// OutputTokens) held with ignore_eos unless naturalStop, and explicit greedy
 // sampling.
 func (g *Generator) Request(model string, index uint64, naturalStop bool) *openai.Request {
 	temp, rep := Temperature, RepetitionPenalty
 	return &openai.Request{
 		Model:             model,
 		Messages:          g.Messages(index),
-		MaxTokens:         g.profile.MaxTokens,
+		MaxTokens:         g.OutputTokens(index),
 		IgnoreEOS:         !naturalStop,
 		Temperature:       &temp,
 		RepetitionPenalty: &rep,

@@ -8,7 +8,8 @@
 # Order: ours, vLLM's, ours again. The repeat measures run-to-run drift on
 # this engine, so a gap between the two clients can be read against it. The
 # interactive profile's shape is matched: ~300 shared prefix tokens, ~100
-# unique, 128 output tokens with ignore_eos, temperature 0, closed loop at a
+# unique, output length uniform over 96-160 tokens (the same rule on both
+# sides) with ignore_eos, temperature 0, closed loop at a
 # fixed concurrency.
 set -euo pipefail
 
@@ -34,7 +35,7 @@ vllm_args=(
 	vllm bench serve --backend openai-chat --endpoint /v1/chat/completions
 	--base-url "$base" --model "$model"
 	--dataset-name random --random-prefix-len 300 --random-input-len 100
-	--random-output-len 128 --random-range-ratio 0 --ignore-eos --temperature 0
+	--random-output-len 128 --random-range-ratio '{"input": 0, "output": 0.25}' --ignore-eos --temperature 0
 	--max-concurrency "$c" --num-prompts 400 --num-warmups 16 --seed 1
 	--percentile-metrics ttft,tpot,itl,e2el --metric-percentiles 50,95,99
 	--save-result --save-detailed --result-dir /tmp/vsb-verify --result-filename vllm-bench.json
