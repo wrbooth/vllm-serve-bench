@@ -732,3 +732,39 @@ the generated tables.
 - **Not done:** publishing the checkpoint to Hugging Face. It is public and
   under the owner's account, so it waits for the owner's go-ahead, and the
   HF token's write scope is still unchecked.
+
+## [2026-09-28] work | Bench image, Compose bench service, Kubernetes manifests, deploy CI
+
+Build-order step 6. What was built and where it is described:
+[docs/02-architecture.md](../docs/02-architecture.md#deployment) (Deployment
+and CI/CD), [deploy/k8s/README.md](../deploy/k8s/README.md).
+
+- **The image is distroless `base`, not `static`.** The Go binary is static,
+  but the GPU sampler execs `nvidia-smi`, which the NVIDIA toolkit injects
+  from the host, and `nvidia-smi` is a dynamically linked glibc program.
+  distroless/static has no glibc, so the sampler would fail to start there.
+  Not yet confirmed on the GPU host: that the CDI spec injects `nvidia-smi`
+  into a distroless container and it runs.
+- **The bench cannot read the engine's argv from its own container.** In
+  Compose the caller passes `ENGINE_ARGV="$(./engine.sh argv)"`; on
+  Kubernetes a ConfigMap carries it, and the README replaces the declared
+  value with the pod's `/proc/1/cmdline` before a run. Without it `bench run`
+  refuses to start, as designed.
+- **On Kubernetes the bench gets no GPU sampler.** The engine holds the
+  node's one GPU, so nothing injects `nvidia-smi` into the bench pod; the Job
+  runs with `--gpu-sampler=false` and is pinned to the engine's node by pod
+  affinity so TTFT carries no extra hop.
+- **The two profiles run as init container, then container**, so they never
+  overlap, with no shell in the image to sequence them.
+- **Deploy lint is its own target (`make lint-deploy`) and CI job, not part
+  of `make lint`.** kubeconform downloads schemas on every run and
+  `docker compose config` needs the Docker CLI; `make lint` stays offline and
+  Docker-free. kubeconform is pinned at v0.7.0 because v0.8.0 needs Go 1.26.
+- **Checked here:** kubeconform passes on all eight objects and rejects a
+  misspelt field; `docker compose config` passes for every engine config and
+  rejects an unknown key; the build stage's exact `go build` produced a static
+  linux/amd64 binary from the `.dockerignore`d context, and `version` printed
+  the build arg. **Not checked here:** `docker build` itself (no Docker daemon
+  running on the dev machine); the CI image job is the first real build.
+- The planned Compose `observability` profile (Prometheus + Grafana) is not
+  built; docs/02 now says so.

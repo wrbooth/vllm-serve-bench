@@ -1,0 +1,127 @@
+# The baseline engine: the same image digest, model and flags as
+# deploy/compose/.env + deploy/compose/engine/baseline.env. Keep them in step;
+# another experiment is another args list, as it is another env file in Compose.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vllm
+  namespace: vllm-serve-bench
+  labels:
+    app.kubernetes.io/name: vllm
+    app.kubernetes.io/component: engine
+    app.kubernetes.io/part-of: vllm-serve-bench
+spec:
+  replicas: 1
+  # One GPU per node in the target pool: a rolling update would wait forever
+  # for a second GPU. Stop the old pod, then start the new one.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: vllm
+      app.kubernetes.io/component: engine
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: vllm
+        app.kubernetes.io/component: engine
+        app.kubernetes.io/part-of: vllm-serve-bench
+    spec:
+      # GPU nodes carry the nvidia.com/gpu NoSchedule taint so ordinary CPU
+      # work never lands on them; this pod tolerates it and selects them.
+      # gpu.present is set by NVIDIA GPU feature discovery (GPU Operator).
+      nodeSelector:
+        nvidia.com/gpu.present: "true"
+      tolerations:
+        - key: nvidia.com/gpu
+          operator: Exists
+          effect: NoSchedule
+      containers:
+        - name: vllm
+          # Pinned by digest, as in deploy/compose/.env.
+          image: vllm/vllm-openai:v0.29.0@sha256:c2914767605584b6d8f45686b82de173ecc99e781897aa3d0a66dacd72c51ae1
+          # The image's entrypoint is `vllm serve`; args replace only its CMD.
+          # --max-num-seqs and --max-num-batched-tokens are set explicitly for
+          # the same reason as in baseline.env: vLLM's defaults depend on the
+          # GPU, and a different card must not silently change the scheduler.
+          args:
+            - Qwen/Qwen2.5-7B-Instruct
+            - --host
+            - 0.0.0.0
+            - --port
+            - "8000"
+            - --gpu-memory-utilization
+            - "0.90"
+            - --max-model-len
+            - "8192"
+            - --max-num-seqs
+            - "256"
+            - --max-num-batched-tokens
+            - "2048"
+          env:
+            - name: HF_HUB_OFFLINE
+              value: "1" # weights come from the model-cache PVC only; never a surprise download mid-run
+            # Registers vLLM's dev endpoints, of which the bench uses one:
+            # POST /reset_prefix_cache before every level, so no prompt from an
+            # earlier run is served from cache. vLLM's own sweep tool
+            # (vllm/benchmarks/sweep/server.py) runs its server the same way. In
+            # v0.29 the flag does nothing else except log stack traces on errors,
+            # and it is excluded from the compile-cache hash (envs.py).
+            # Reachable only from the bench pods (vllm-networkpolicy.yaml).
+            - name: VLLM_SERVER_DEV_MODE
+              value: "1"
+          ports:
+            - name: http
+              containerPort: 8000
+          resources:
+            # CPU and memory are starting values, not measured on a cluster.
+            requests:
+              cpu: "4"
+              memory: 24Gi
+              nvidia.com/gpu: "1"
+            limits:
+              memory: 48Gi
+              nvidia.com/gpu: "1"
+          # Model load plus compile on a cold cache ("Engine startup, measured"
+          # in wiki/gpu-host.md), plus slack for a slower card or volume.
+          # 90 x 10 s = 15 min, the Compose start_period.
+          startupProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 10
+            failureThreshold: 90
+          # Ready means it serves the model list, the same check engine.sh uses.
+          readinessProbe:
+            httpGet:
+              path: /v1/models
+              port: http
+            periodSeconds: 5
+            timeoutSeconds: 3
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+          volumeMounts:
+            - name: model-cache
+              mountPath: /root/.cache/huggingface
+              subPath: huggingface
+              readOnly: true
+            - name: model-cache
+              mountPath: /root/.cache/vllm
+              subPath: vllm
+            - name: shm
+              mountPath: /dev/shm
+      volumes:
+        - name: model-cache
+          persistentVolumeClaim:
+            claimName: model-cache
+        # Compose's shm_size: 8gb. The container default of 64 MiB is too small
+        # for PyTorch's shared-memory use.
+        - name: shm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 8Gi

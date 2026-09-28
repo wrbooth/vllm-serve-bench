@@ -30,8 +30,8 @@ Slides are drafted 2026-09-29.
 | Experiment B1 — prefix caching | `todo` | |
 | Experiment B2 — self-made FP8 checkpoint | `done` (large goodput gain; quality check level with bf16; not yet published to HF) | `scripts/quantize/`, `results/b2-fp8/`, `results/quality/`, `docs/03` |
 | Experiment C — FP8 KV cache | `todo` (stretch) | |
-| Dockerfile + GHCR publish in CI | `todo` | |
-| Kubernetes manifests (kubeconform in CI) | `todo` | `deploy/k8s/` |
+| Dockerfile + GHCR publish in CI | `done` (written; the CI job builds, smoke-runs and, on `main`, pushes it, and first runs on this PR; not yet run on the GPU host) | `Dockerfile`, `.github/workflows/ci.yml`, `bench` service in `deploy/compose/` |
+| Kubernetes manifests (kubeconform in CI) | `done` (validated with `kubeconform -strict`, never applied to a cluster) | `deploy/k8s/`, `make lint-deploy` |
 | Results write-up + slides | `in-progress` (docs/03 has the SLO and both baselines; experiments pending; slides `todo`) | `docs/03-results.md`, `docs/slides/` |
 | Proxy in front of vLLM | `deferred` (stretch) | |
 | EKS run as a second hardware point | `deferred` (stretch) | |

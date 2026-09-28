@@ -2,7 +2,8 @@
 # ./engine.sh, which layers the env files in a fixed order (see there); a bare
 # `docker compose up` leaves MODEL and ENGINE_ARGS unset on purpose, and fails.
 #
-# The bench service joins once its image exists (build order step 6).
+# The bench service is behind the `bench` profile, so `docker compose up` (and
+# engine.sh) still starts only the engine. See the service for how to run it.
 name: vllm-serve-bench
 
 services:
@@ -47,6 +48,58 @@ services:
       timeout: 3s
       retries: 3
       start_period: 15m # 7B load + compile on a cold cache
+
+  # One sweep of one profile against the running engine, from our image. With
+  # the engine already up through engine.sh (same env files, same order):
+  #
+  #   ENGINE_ARGV="$(./engine.sh argv)" BENCH_PROFILE=interactive \
+  #     docker compose --env-file .env --env-file engine/<config>.env \
+  #     --env-file .env.local --profile bench run --rm bench
+  #
+  # The bench cannot read the engine's /proc/1/cmdline from its own container,
+  # so the caller passes the argv engine.sh reads; bench run refuses to start
+  # without it. scripts/sweep.sh is the same sweep from a host binary.
+  bench:
+    profiles: [bench]
+    image: ${BENCH_IMAGE:-ghcr.io/wrbooth/vllm-serve-bench:latest}
+    depends_on:
+      vllm:
+        condition: service_healthy
+    # List form: each element is one argv entry, so ENGINE_ARGV keeps its spaces.
+    command:
+      - run
+      - --profile
+      - ${BENCH_PROFILE:-interactive}
+      - --warmup
+      - 10s
+      - --duration
+      - 60s
+      - --seed
+      - "1"
+      # Service name on the Compose network: same host, no LAN hop in TTFT.
+      - --base-url
+      - http://vllm:8000
+      - --model
+      - ${MODEL:?set by engine.sh}
+      - --out
+      - /results/${RESULTS_SUBDIR:-tmp}
+      - --engine-config
+      - ${CONFIG:-baseline}
+      - --engine-argv
+      - ${ENGINE_ARGV:-}
+      - --engine-image
+      - ${VLLM_IMAGE:?set in .env}
+    devices:
+      # Only for nvidia-smi (the 1 Hz GPU sampler): the CDI spec mounts the
+      # binary and NVML into the container. The bench allocates no GPU memory.
+      # Without this device, add --gpu-sampler=false to the command.
+      - nvidia.com/gpu=all
+    # The image runs as distroless nonroot (65532); the bind mount must be
+    # writable by this uid. Set BENCH_UID/BENCH_GID in .env.local to the owner
+    # of the results directory.
+    user: "${BENCH_UID:-65532}:${BENCH_GID:-65532}"
+    volumes:
+      - ${RESULTS_DIR:-../../results}:/results
 
 volumes:
   vllm-cache:

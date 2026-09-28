@@ -292,36 +292,70 @@ not from the online path.
 ### Compose (what actually runs)
 
 `deploy/compose/docker-compose.yml` defines `vllm` (pinned image, CDI GPU, model cache volume,
-healthcheck on `/health`), `bench` (our image, `depends_on: vllm: condition: service_healthy`,
-results bind-mounted out), and an `observability` profile with `prometheus` scraping
-`vllm:8000/metrics` and `grafana` with one provisioned dashboard for the live demo. Engine flag
-sets live in `deploy/compose/engine/*.env`, one file per experiment, so a run is
-`./engine.sh up <config> <model>`; the script layers the env files in a fixed order, waits for
-readiness, and prints the engine's actual argv.
+healthcheck on `/health`) and `bench` (our image, `depends_on: vllm: condition: service_healthy`,
+base URL `http://vllm:8000` on the Compose network, `results/` bind-mounted to `/results`, the
+same CDI device so `nvidia-smi` is injected for the GPU sampler). `bench` sits behind the `bench`
+profile, so `docker compose up` and `engine.sh` start only the engine. The bench cannot read the
+engine's `/proc/1/cmdline` from its own container, so the caller passes the argv `engine.sh argv`
+prints as `ENGINE_ARGV`, and `bench run` refuses to start without it. Engine flag sets live in
+`deploy/compose/engine/*.env`, one file per experiment, so a run is `./engine.sh up <config>
+<model>`; the script layers the env files in a fixed order, waits for readiness, and prints the
+engine's actual argv. The reported sweeps so far ran from a host binary through
+`scripts/sweep.sh`, with the same flags. An `observability` profile (Prometheus scraping
+`vllm:8000/metrics`, Grafana for a live demo) was planned and is not built.
+
+### Bench image
+
+`Dockerfile` at the repo root: a multi-stage build that cross-compiles `cmd/bench` on the build
+platform (`CGO_ENABLED=0`, `-trimpath`, version from the `VERSION` build arg via
+`-ldflags "-X main.version=..."`), then copies the static binary into
+`gcr.io/distroless/base-debian12:nonroot`. Both base images are pinned by digest. The final image
+is distroless *base*, not *static*: the binary needs nothing, but `nvidia-smi`, which the NVIDIA
+toolkit injects at run time, is a glibc program and cannot start without glibc. Where no GPU is
+injected (CI, a Kubernetes pod without a GPU), run with `--gpu-sampler=false`.
 
 ### Kubernetes (validated, not the primary runtime)
 
-`deploy/k8s/` holds a `Deployment` for vLLM requesting `nvidia.com/gpu: 1`, with a readiness
-probe on `/health`, a `nodeSelector` and toleration for a GPU-tainted node pool so CPU work never
-lands on the GPU node, a `Service`, a `PersistentVolumeClaim` for the model cache, and a `Job` for
-the bench with the same profile flags. Manifests are validated with `kubeconform` in CI. They are
-the path to EKS (g6e.xlarge, one L40S) in my own AWS account if the time box allows; that run would
-be reported separately as a second hardware point, not merged into the 5090 tables.
+`deploy/k8s/engine/` holds a `Deployment` for vLLM (the same digest and baseline flags, including
+the explicit scheduler budgets; `Recreate`, since a rolling update would wait for a second GPU)
+requesting `nvidia.com/gpu: 1`, with a startup probe on `/health` (15 minutes, as Compose's
+`start_period`), readiness on `/v1/models`, liveness on `/health`, a `nodeSelector` and toleration
+for a GPU-tainted node pool so CPU work never lands on the GPU node, an 8 GiB memory-backed
+`/dev/shm`, and `HF_HUB_OFFLINE=1`; a ClusterIP `Service`; a `PersistentVolumeClaim` for the model
+and compile caches; and a `NetworkPolicy` that admits only the bench, because dev mode is on.
+`deploy/k8s/bench/` holds a `Job` that runs both profiles in sequence with `scripts/sweep.sh`'s
+flags (interactive as an init container, so the two never overlap), pinned to the engine's node
+by pod affinity so TTFT has no node-to-node hop, with `--gpu-sampler=false` because the engine
+holds the node's only GPU; a `ConfigMap` with what the bench records about the engine, which is
+replaced with the pod's actual argv before a reported run; and a results `PersistentVolumeClaim`.
+`deploy/k8s/README.md` has the cluster assumptions and the run sequence.
+
+The manifests are validated with `kubeconform -strict` in CI and have not been applied to a
+cluster. They are the path to EKS (g6e.xlarge, one L40S) in my own AWS account if the time box
+allows; that is design, not result, and a run there would be reported separately as a second
+hardware point, not merged into the 5090 tables.
 
 ## CI/CD
 
-`.github/workflows/ci.yml`, on push and PR:
+`.github/workflows/ci.yml`, on push to `main` and on PRs. Every job calls a Makefile target, and
+tool versions are pinned in the Makefile only.
 
-1. `go vet`, `go test -race ./...` (unit tests plus an integration test against an in-process
-   fake OpenAI-compatible server that streams SSE with known timings, so TTFT/TPOT math is tested
-   end-to-end without a GPU).
-2. `docker compose config` and `kubeconform` on the manifests.
-3. `docker build` of our image (multi-stage, distroless final, static binary).
-4. On `main`: push to `ghcr.io/wrbooth/vllm-serve-bench:{sha,latest}` with the repo's
-   `GITHUB_TOKEN` (`packages: write`).
+1. **Lint:** `make lint` (golangci-lint, actionlint, ruff, markdownlint, gitleaks).
+2. **Test:** `go vet`, `go test -race ./...` (unit tests plus integration tests against an
+   in-process fake OpenAI-compatible server that streams SSE with known timings, so TTFT/TPOT math
+   is tested end-to-end without a GPU), the coverage floor, and `make build`.
+3. **Deploy manifests:** `make lint-deploy`, which is `kubeconform -strict` on `deploy/k8s/` and
+   `docker compose config -q` for every engine config, with dummy values for what `engine.sh` and
+   the gitignored `.env.local` supply. These are not part of `make lint`, because kubeconform
+   downloads the Kubernetes schemas and Compose needs the Docker CLI; `make lint` stays offline
+   and Docker-free.
+4. **Image:** after the three jobs above pass, `docker build` of our image and a smoke run
+   (`bench version` must print the commit). On `main` only, the same build is pushed to
+   `ghcr.io/wrbooth/vllm-serve-bench:{sha,latest}` with the repo's `GITHUB_TOKEN`
+   (`packages: write`, granted to this job only).
 
-The GPU-dependent path (a real vLLM smoke run) is intentionally not in CI; it is a documented
-`make smoke` target run on the GPU host, and its output is committed under `results/smoke/`.
+The GPU-dependent path (a real vLLM smoke run) is intentionally not in CI; it is the
+`make test-gpu` target run on the GPU host, and its output is committed under `results/smoke/`.
 
 ## Testing
 
@@ -345,11 +379,11 @@ internal/sampler/        vllm /metrics scraper, nvidia-smi sampler
 internal/report/         SLO judgement, goodput, engine-side window stats, deltas, docs/03 blocks
 internal/fakeserver/     OpenAI-compatible fake for tests
 scripts/wordlist/        offline pre-screen for the prompt word list
-deploy/compose/          docker-compose.yml, engine/*.env, prometheus/, grafana/
-deploy/k8s/              manifests
+deploy/compose/          docker-compose.yml (vllm + bench), engine.sh, engine/*.env
+deploy/k8s/              engine/ (Deployment, Service, PVC, NetworkPolicy), bench/ (Job, ConfigMap, PVC)
 results/                 committed raw runs
 docs/                    this doc, problem statement, results, worklog, slides
-Dockerfile  Makefile  .github/workflows/ci.yml
+Dockerfile  .dockerignore  Makefile  .github/workflows/ci.yml
 ```
 
 ## Scale-out design (presentation material, not built)

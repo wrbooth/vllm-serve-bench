@@ -1,0 +1,17 @@
+# Run directories outlive the Job's pod here. An emptyDir would be lost with
+# the pod, and the distroless image has no tar for `kubectl cp`; read results
+# out through a throwaway pod that mounts this claim (deploy/k8s/README.md).
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: bench-results
+  namespace: vllm-serve-bench
+  labels:
+    app.kubernetes.io/name: bench
+    app.kubernetes.io/component: loadgen
+    app.kubernetes.io/part-of: vllm-serve-bench
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 1Gi # results/baseline/ holds three run directories in a few MB

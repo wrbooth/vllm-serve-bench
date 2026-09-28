@@ -62,3 +62,13 @@ None yet.
   concurrency, baseline against experiments): cut for time. The tables and
   comparisons carry every figure; charts can be drawn from the same
   `internal/report` tables later without changing any number.
+- **Compose `observability` profile (Prometheus + Grafana)**: cut for time. It
+  was planned as live-demo material only. The run directories already hold the
+  same engine counters (`vllm_metrics.csv`) at 1 Hz, and docs/02 now says it was
+  not built.
+- **Experiment A as a dose-response curve** (4096 as well as 8192) and **a
+  lower `max_num_seqs`**: cut to keep A to one engine config. A lower
+  `max_num_seqs` trades TTFT for TPOT with no goodput gain at the chosen SLOs.
+- **Experiments B1 and B2 on a subset of levels**: run only around each
+  baseline knee (plus interactive c=1 for B2), not the full sweeps, to save
+  GPU time. The comparison tables show which levels were run on only one side.

@@ -1,0 +1,23 @@
+# Only go.mod, cmd/ and internal/ are copied into the build stage; keep the
+# context small and free of anything private or large.
+.git
+.github
+.golangci-cache
+bin
+results
+raw
+docs
+wiki
+scripts
+deploy
+testdata
+**/testdata
+**/*_test.go
+coverage.out
+coverage.log
+.env.local
+**/.env.local
+.private
+.DS_Store
+.idea
+.vscode
