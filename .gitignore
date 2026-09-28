@@ -13,4 +13,5 @@ deploy/compose/.env.local
 .vscode/
 # go
 coverage.out
+coverage.log
 .golangci-cache/

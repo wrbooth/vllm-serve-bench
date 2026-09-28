@@ -68,13 +68,20 @@ var ErrResetRefused = errors.New("prefix cache reset refused")
 // ResetPrefixCache empties the engine's prefix cache, retrying every poll
 // while the engine refuses (blocks still held) until ctx is done.
 func (c *Client) ResetPrefixCache(ctx context.Context, poll time.Duration) error {
+	refused := false
 	for {
 		var out struct {
 			Success bool `json:"success"`
 		}
 		if err := c.doJSON(ctx, http.MethodPost, ResetPrefixCachePath, nil, &out); err != nil {
+			// The deadline can land mid-request as easily as between
+			// attempts; after a refusal, either way the engine refused.
+			if refused && ctx.Err() != nil {
+				return fmt.Errorf("%w: %w", ErrResetRefused, ctx.Err())
+			}
 			return err
 		}
+		refused = true
 		if out.Success {
 			return nil
 		}
