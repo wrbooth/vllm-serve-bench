@@ -22,7 +22,7 @@ Slides are drafted 2026-09-29.
 | `bench run`: sweep, readiness wait, run directory | `done` | `cmd/bench`, `internal/results` |
 | 1 Hz samplers (engine `/metrics`, nvidia-smi) | `done` | `internal/sampler`, `bench sample`, `bench run` |
 | Fake server + integration tests | `done` | `internal/fakeserver` |
-| Cross-check against `vllm bench serve` | `done` (passes; `bench verify` to generate the comparison is `todo`) | `results/verify/`, `scripts/cross-check.sh` |
+| Cross-check against `vllm bench serve` | `done` (passes; `bench verify` generates the comparison) | `results/verify/`, `scripts/cross-check.sh`, `internal/crosscheck` |
 | Baseline sweeps, both profiles | `todo` | `results/` |
 | SLO chosen from baseline | `todo` | `docs/03-results.md` |
 | Experiment A — batching | `todo` | |
