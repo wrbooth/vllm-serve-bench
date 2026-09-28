@@ -74,7 +74,9 @@ Startup logs: [raw/engine-logs/](../raw/engine-logs/).
   `vllm/engine/arg_utils.py`, not from a log line: devices under 70 GiB fall
   into the "other hardware" branch. The startup log prints only non-default
   args, so these never show up there. `/metrics` exposes the KV pool
-  (`cache_config_info{kv_cache_size_tokens=…}`) but not these two.
+  (`cache_config_info{kv_cache_size_tokens=…}`) but not these two. So the
+  engine configs pass both explicitly at these values. The engine restarted
+  with them got the same argv-visible budgets and the same 241,680-token pool.
 - **FP8 runs on sm_120** in this image: vLLM selects
   `CutlassFP8ScaledMMLinearKernel`, and the output is coherent (one
   temperature-0 prompt checked by eye). B2 is not blocked on kernels.
