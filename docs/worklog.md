@@ -26,16 +26,17 @@ The build order and the status of each deliverable live in
 
 ## Sessions
 
-Generated 2026-09-27 16:33 (the last session was still in progress):
+Generated 2026-09-27 17:15 (the last session was still in progress):
 
 | # | Date | Start | End | Active |
 |---|---|---|---|---|
 | 1 | 2026-09-27 | 08:32 | 08:32 | 0 h 00 m |
 | 2 | 2026-09-27 | 11:01 | 11:04 | 0 h 02 m |
 | 3 | 2026-09-27 | 15:20 | 15:39 | 0 h 20 m |
-| 4 | 2026-09-27 | 16:02 | 16:33 | 0 h 31 m |
+| 4 | 2026-09-27 | 16:02 | 16:37 | 0 h 35 m |
+| 5 | 2026-09-27 | 16:49 | 17:15 | 0 h 27 m |
 
-**Total:** 0 h 53 m over 4 sessions.
+**Total:** 1 h 24 m over 5 sessions.
 
 ### Manual entries
 
@@ -50,6 +51,10 @@ None yet.
 - Docs were written before any code, so the metric definitions and the rule
   that the SLO comes after the baseline were in writing first. By 16:15 all
   time had gone into docs and tooling; no bench code yet.
+- **Session 5.** The engine was brought up under Compose (0.5B, 7B, the FP8
+  smoke test) while a background agent built the Go client, metrics, fake
+  server and runner in a second worktree. Its transcript (16:50 to 17:02)
+  falls inside this session, so it adds no time.
 
 ## Cut / deferred
 
