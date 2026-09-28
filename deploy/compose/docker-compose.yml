@@ -1,0 +1,42 @@
+# The engine as it actually runs for every reported number. Start it through
+# ./engine.sh, which layers the env files in a fixed order (see there); a bare
+# `docker compose up` leaves MODEL and ENGINE_ARGS unset on purpose, and fails.
+#
+# The bench service joins once its image exists (build order step 6).
+name: vllm-serve-bench
+
+services:
+  vllm:
+    image: ${VLLM_IMAGE:?set in .env}
+    container_name: vsb-vllm
+    # The image's entrypoint is `vllm serve`; the model is positional (v0.29
+    # warns that `--model` is deprecated). A string command is split
+    # shell-style, so ENGINE_ARGS (one experiment's flags) expands to argv.
+    # ENGINE_ARGS comes last: vLLM keeps the last occurrence of a repeated flag,
+    # so nothing may be appended after it. engine.sh records the argv that
+    # actually ran, not this line.
+    command: >-
+      ${MODEL:?set by engine.sh} --host 0.0.0.0 --port 8000 ${ENGINE_ARGS?set by engine/<config>.env}
+    devices:
+      # NixOS host: CDI spec from nvidia-container-toolkit, no `nvidia` runtime
+      # registered, so `gpus:` / `--gpus` would not work (wiki/gpu-host.md).
+      # A CDI device is named directly, the Compose spelling of
+      # `docker run --device nvidia.com/gpu=all`.
+      - nvidia.com/gpu=all
+    environment:
+      HF_HUB_OFFLINE: "1" # weights come from the host cache only; never a surprise download mid-run
+    volumes:
+      - ${HF_CACHE:?set in .env.local}:/root/.cache/huggingface:ro
+      - vllm-cache:/root/.cache/vllm # torch.compile / CUDA graph cache; survives restarts
+    shm_size: 8gb
+    ports:
+      - "127.0.0.1:${VLLM_PORT:-8000}:8000" # the bench runs on this host; nothing on the LAN
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+      start_period: 15m # 7B load + compile on a cold cache
+
+volumes:
+  vllm-cache:

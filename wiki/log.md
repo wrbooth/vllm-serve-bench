@@ -76,3 +76,55 @@ on the same machine, so its transcript is stored under that directory, not
 this repo's. `make timesheet -also` (set as `TIMESHEET_ALSO` in `.env.local`)
 now reads such transcripts and counts only the records that name this repo;
 see [docs/worklog.md](../docs/worklog.md).
+
+## [2026-09-27] work | Engine up under Compose; FP8 runs on sm_120
+
+The pinned engine runs under Compose with the CDI device named directly (the
+`{driver: cdi}` form in the design was the wrong Compose key). It served the
+0.5B and 7B models. Online FP8 works with a CUTLASS kernel, so B2 is not
+blocked. KV figures and SSE quirks are in
+[gpu-host.md](gpu-host.md#engine-startup-measured).
+
+## [2026-09-27] decision | The baseline runs with prefix caching off
+
+The design contradicted itself: "Serving layer" said vLLM defaults (caching
+on), while B1 said the baseline runs with it off. B1 only makes sense as
+off → on, so the baseline has `--no-enable-prefix-caching` and the design
+now says so. Side effect: the KV pool grew by 1.74 GiB, which reopens the
+throughput profile's sizing (open question in [project.md](project.md)).
+
+## [2026-09-27] decision | Host-side Python runs in the GPU distrobox
+
+The host has no Python. At the owner's direction, host tooling (llm-compressor
+for B2) runs in the `ubuntu-gpu-v2` distrobox; the engine stays in Docker.
+
+## [2026-09-27] decision | Reversed: the baseline keeps prefix caching on; B1 turns it off
+
+Supersedes the entry above that turned caching off in the baseline. The owner
+chose defaults as the baseline: it is what a stock deployment runs, the SLO
+then comes from realistic data, and the other experiments run on a realistic
+config. B1 becomes an ablation of a default ("what is it worth?"). The
+alternative, off → on, reads more naturally but invites "you turned off a
+default to win it back". The KV-pool side effect (209,120 tokens with caching
+on vs 241,680 off) goes into B1's trade-off.
+
+## [2026-09-27] work | Correction: the KV pool moved with compile-cache state, not prefix caching
+
+Two entries above say that turning prefix caching off grew the KV pool by
+1.74 GiB. That was wrong. Rerunning the new baseline (caching on) gave the
+same 241,680 tokens as caching off. The only small pool, 209,120, came from
+the first 7B start, which compiled its graphs cold. Warm starts load the
+compiled graph and get the larger pool. Rule adopted: benchmark runs start
+warm, and `config.json` records the pool size. Details and the per-start
+table are in [gpu-host.md](gpu-host.md#engine-startup-measured).
+
+## [2026-09-27] decision | Throughput sweep extends to 192 and 256
+
+On a warm start the baseline KV pool (241,680 tokens) holds the old top level
+(128 × ~1.8k), so the design's promise to measure preemption was at risk. The
+options were to extend the sweep, lengthen the documents, shrink the pool
+artificially, or drop the goal. The owner chose to extend it. The sweep stops at 256
+because that is vLLM's default `max_num_seqs` on a 32 GB card; above it, the
+scheduler would queue requests rather than preempt them. The 2048-token
+`max_num_batched_tokens` default is noted for Experiment A. Design:
+[docs/02-architecture.md](../docs/02-architecture.md#workload-profiles).

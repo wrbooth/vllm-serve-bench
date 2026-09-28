@@ -21,10 +21,19 @@ The only hardware the reported numbers come from. Checked 2026-09-27.
 - Docker 29.4 with **CDI** GPU injection: the CDI spec from
   nvidia-container-toolkit is present, but no `nvidia` runtime is registered.
   So `--gpus all` is the wrong spelling here; use
-  `--device nvidia.com/gpu=all`, and in Compose
-  `devices: [{driver: cdi, device_ids: ["nvidia.com/gpu=all"]}]`.
+  `--device nvidia.com/gpu=all`, and in Compose `devices: ["nvidia.com/gpu=all"]`.
+  The `{driver: cdi, device_ids: [...]}` form that the docs first gave belongs
+  under `deploy.resources.reservations.devices`; under a service's `devices`,
+  Compose 5.0.2 rejects it ("missing a mount target").
   Verified: `docker run --rm --device nvidia.com/gpu=all ubuntu:24.04 nvidia-smi`
   sees the card.
+- No Python on the host itself. Host-side Python (llm-compressor for B2, any
+  helper script) runs in the GPU-enabled distrobox `ubuntu-gpu-v2`, at the owner's
+  direction: Python 3.12, sees the card, shares the home directory and so the
+  HF cache. No `uv` or `pip` in it yet. The engine does not use it; it runs
+  under Docker Compose.
+- The compose directory is rsynced to the host rather than checked out there;
+  the host copy gets its own gitignored `.env.local` (`HF_CACHE`).
 - No Go toolchain on the host. The bench runs from its container image, or is
   cross-compiled (`GOOS=linux GOARCH=amd64 make build`) and copied over.
 
@@ -36,6 +45,50 @@ The only hardware the reported numbers come from. Checked 2026-09-27.
   host's Hugging Face cache, which the Compose file mounts read-only.
 - An HF token is present on the host; whether it has write scope (needed to
   publish the B2 checkpoint) is unchecked.
+
+## Engine startup, measured
+
+Pinned image, 2026-09-27, `--gpu-memory-utilization 0.90 --max-model-len 8192`.
+Startup logs: [raw/engine-logs/](../raw/engine-logs/).
+
+| Config | Compile cache | Weights | KV pool | KV tokens | Ready after |
+|---|---|---|---|---|---|
+| 0.5B bf16 (dev) | cold | 0.93 GiB | 26.13 GiB | 2,283,184 | 132 s |
+| 7B bf16, caching on | cold | 14.29 GiB | 11.17 GiB | 209,120 | 116 s |
+| 7B bf16, caching off (B1) | warm | 14.29 GiB | 12.91 GiB | 241,680 | 108 s |
+| 7B bf16, caching on (**the baseline**) | warm | 14.29 GiB | 12.91 GiB | 241,680 | 106 s |
+| 7B online FP8 | cold | 8.2 GiB | 17.24 GiB | 322,880 | 127 s |
+
+- **The KV pool depends on whether the compile cache is warm, not on prefix
+  caching.** The same baseline flags gave 209,120 tokens on the first
+  (cold) start and 241,680 on a warm one (1.74 GiB more). Caching off and on
+  both gave 241,680 when warm. The cold starts logged `compilation: 8.30 s`
+  and the warm ones `0.48 s` ("Directly load" of the compiled graph). So far
+  this is a correlation over five starts, not a proven mechanism. Consequence:
+  every reported run starts on a warm cache (one throwaway start after any
+  change to image, model or flags), and `config.json` records the startup
+  log's pool size, so a cold start shows up in the data. The FP8 figure
+  above is a cold start and probably understates its pool.
+- **Scheduler defaults on this card:** `max_num_seqs` 256 and
+  `max_num_batched_tokens` 2048. These come from reading the pinned image's
+  `vllm/engine/arg_utils.py`, not from a log line: devices under 70 GiB fall
+  into the "other hardware" branch. The startup log prints only non-default
+  args, so these never show up there. `/metrics` exposes the KV pool
+  (`cache_config_info{kv_cache_size_tokens=…}`) but not these two.
+- **FP8 runs on sm_120** in this image: vLLM selects
+  `CutlassFP8ScaledMMLinearKernel`, and the output is coherent (one
+  temperature-0 prompt checked by eye). B2 is not blocked on kernels.
+- The first SSE chunk is a role-only delta with empty content, so TTFT has to
+  be timed at the first non-empty content.
+- The model's `generation_config.json` overrides vLLM's default sampling
+  (temperature 0.7, top_k 20, repetition_penalty 1.1), so the bench must set
+  sampling parameters explicitly.
+- The chat template adds a system prompt of about 30 tokens: "Say hi."
+  counted as 32 prompt tokens.
+
+The startup-log figures are measurements. The design's
+[KV arithmetic](../docs/02-architecture.md#kv-cache-arithmetic-why-the-profiles-are-sized-the-way-they-are)
+is the prediction: about 215k tokens for bf16 and about 350k for FP8 weights.
 
 ## Sharing the card
 
