@@ -53,6 +53,56 @@ func copyInputs(t *testing.T, root, round string) {
 	}
 }
 
+// commandIn returns the `bench verify` command a comparison.md records.
+func commandIn(t *testing.T, md []byte) []string {
+	t.Helper()
+	for line := range strings.SplitSeq(string(md), "\n") {
+		if strings.HasPrefix(line, "bench verify ") {
+			return strings.Fields(line)
+		}
+	}
+	t.Fatal("comparison.md records no `bench verify` command")
+	return nil
+}
+
+// The committed comparison.md and comparison.json are what the command
+// in their header produces from the committed inputs, byte for byte. The
+// inputs are copied to a scratch root so the default --out (the round's
+// directory) writes there, not into the repo. Not parallel: t.Chdir.
+func TestVerifyRegeneratesTheCommittedComparisons(t *testing.T) {
+	for _, r := range committedRounds {
+		t.Run(r.dir, func(t *testing.T) {
+			committed := filepath.Join("..", "..", "results", "verify", r.dir)
+			wantMD, err := os.ReadFile(filepath.Join(committed, comparisonMD))
+			if err != nil {
+				t.Fatal(err)
+			}
+			wantJSON, err := os.ReadFile(filepath.Join(committed, comparisonJSON))
+			if err != nil {
+				t.Fatal(err)
+			}
+			argv := commandIn(t, wantMD)
+			root := t.TempDir()
+			copyInputs(t, root, r.dir)
+			t.Chdir(root)
+
+			code, out, errs := runBench(t, argv[1:]...)
+			if code != r.exit {
+				t.Fatalf("exit %d, want %d; stdout %q stderr %q", code, r.exit, out, errs)
+			}
+			for name, want := range map[string][]byte{comparisonMD: wantMD, comparisonJSON: wantJSON} {
+				got, err := os.ReadFile(filepath.Join("results", "verify", r.dir, name))
+				if err != nil {
+					t.Fatal(err)
+				}
+				if !bytes.Equal(got, want) {
+					t.Errorf("regenerated %s differs from the committed one; rerun the command in its header and commit the result", name)
+				}
+			}
+		})
+	}
+}
+
 func TestVerifyWritesTheFlaggedComparisonAndExitsZeroOnlyWithAllowCached(t *testing.T) {
 	t.Parallel()
 	root := t.TempDir()

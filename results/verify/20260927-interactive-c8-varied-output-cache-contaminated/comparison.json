@@ -1,0 +1,342 @@
+{
+  "concurrency": 8,
+  "trim_s": 10,
+  "min_uncached_fraction": 0.9,
+  "ours": [
+    {
+      "label": "ours (a)",
+      "n": 383,
+      "failed": 0,
+      "ttft": {
+        "n": 383,
+        "p50_ms": 28.975644,
+        "p95_ms": 29.928711,
+        "p99_ms": 30.59759
+      },
+      "tpot": {
+        "n": 383,
+        "p50_ms": 9.691958,
+        "p95_ms": 9.704726,
+        "p99_ms": 9.714715
+      },
+      "e2e": {
+        "n": 383,
+        "p50_ms": 1250.973606,
+        "p95_ms": 1550.503116,
+        "p99_ms": 1569.826188
+      },
+      "rps": 6.383333333333334,
+      "output_tok_per_s": 814.8,
+      "mean_output_tokens": 127.64490861618799
+    },
+    {
+      "label": "ours (b)",
+      "n": 382,
+      "failed": 0,
+      "ttft": {
+        "n": 382,
+        "p50_ms": 29.038266,
+        "p95_ms": 30.080763,
+        "p99_ms": 30.455615
+      },
+      "tpot": {
+        "n": 382,
+        "p50_ms": 9.697105,
+        "p95_ms": 9.708164,
+        "p99_ms": 9.724223
+      },
+      "e2e": {
+        "n": 382,
+        "p50_ms": 1250.777293,
+        "p95_ms": 1551.822354,
+        "p99_ms": 1571.039749
+      },
+      "rps": 6.366666666666666,
+      "output_tok_per_s": 812.4166666666666,
+      "mean_output_tokens": 127.60471204188482
+    }
+  ],
+  "vllm_reported": {
+    "label": "vLLM reported",
+    "n": 400,
+    "failed": 0,
+    "ttft": {
+      "n": 400,
+      "p50_ms": 31.743089202791452,
+      "p95_ms": 36.91878046374768,
+      "p99_ms": 58.95214727148413
+    },
+    "tpot": {
+      "n": 400,
+      "p50_ms": 9.799065819322163,
+      "p95_ms": 9.842411835561924,
+      "p99_ms": 9.865223198204847
+    },
+    "e2e": {
+      "n": 400,
+      "p50_ms": 1281.0556222684681,
+      "p95_ms": 1568.1391776073724,
+      "p99_ms": 1584.9793850211427
+    },
+    "rps": 6.171082552199576,
+    "output_tok_per_s": 797.3655765697072,
+    "mean_output_tokens": 129.21
+  },
+  "vllm_recomputed": {
+    "label": "vLLM recomputed",
+    "n": 400,
+    "failed": 0,
+    "ttft": {
+      "n": 400,
+      "p50_ms": 31.740654725581408,
+      "p95_ms": 36.918630823493004,
+      "p99_ms": 58.94780019298196
+    },
+    "tpot": {
+      "n": 400,
+      "p50_ms": 9.798685970183994,
+      "p95_ms": 9.842270678889594,
+      "p99_ms": 9.865078613914262
+    },
+    "e2e": {
+      "n": 400,
+      "p50_ms": 1280.5347857065499,
+      "p95_ms": 1567.9804920218885,
+      "p99_ms": 1584.9536969326437
+    },
+    "rps": 6.171082552199576,
+    "output_tok_per_s": 797.3655765697072,
+    "mean_output_tokens": 129.21
+  },
+  "rows": [
+    {
+      "metric": "TTFT p50 (ms)",
+      "ours": [
+        28.975644,
+        29.038266
+      ],
+      "vllm_reported": 31.743089202791452,
+      "vllm_recomputed": 31.740654725581408,
+      "delta_pct": [
+        -8.711259265086758,
+        -8.51396654840713
+      ]
+    },
+    {
+      "metric": "TTFT p95 (ms)",
+      "ours": [
+        29.928711,
+        30.080763
+      ],
+      "vllm_reported": 36.91878046374768,
+      "vllm_recomputed": 36.918630823493004,
+      "delta_pct": [
+        -18.93331271387508,
+        -18.521455620021957
+      ]
+    },
+    {
+      "metric": "TTFT p99 (ms)",
+      "ours": [
+        30.59759,
+        30.455615
+      ],
+      "vllm_reported": 58.95214727148413,
+      "vllm_recomputed": 58.94780019298196,
+      "delta_pct": [
+        -48.09375430494385,
+        -48.334602987227505
+      ]
+    },
+    {
+      "metric": "TPOT p50 (ms)",
+      "ours": [
+        9.691958,
+        9.697105
+      ],
+      "vllm_reported": 9.799065819322163,
+      "vllm_recomputed": 9.798685970183994,
+      "delta_pct": [
+        -1.0892069662070274,
+        -1.0366795149175128
+      ]
+    },
+    {
+      "metric": "TPOT p99 (ms)",
+      "ours": [
+        9.714715,
+        9.724223
+      ],
+      "vllm_reported": 9.865223198204847,
+      "vllm_recomputed": 9.865078613914262,
+      "delta_pct": [
+        -1.524200868528111,
+        -1.4278204911169297
+      ]
+    },
+    {
+      "metric": "E2E p50 (ms)",
+      "ours": [
+        1250.973606,
+        1250.777293
+      ],
+      "vllm_reported": 1281.0556222684681,
+      "vllm_recomputed": 1280.5347857065499,
+      "delta_pct": [
+        -2.3085026690812733,
+        -2.323833217082872
+      ]
+    },
+    {
+      "metric": "E2E p99 (ms)",
+      "ours": [
+        1569.826188,
+        1571.039749
+      ],
+      "vllm_reported": 1584.9793850211427,
+      "vllm_recomputed": 1584.9536969326437,
+      "delta_pct": [
+        -0.9544448498350377,
+        -0.8778772502673893
+      ]
+    },
+    {
+      "metric": "RPS",
+      "ours": [
+        6.383333333333334,
+        6.366666666666666
+      ],
+      "vllm_reported": 6.171082552199576,
+      "vllm_recomputed": 6.216240667631396,
+      "delta_pct": [
+        2.688001875024016,
+        2.4198869876218514
+      ]
+    },
+    {
+      "metric": "Output tok/s",
+      "ours": [
+        814.8,
+        812.4166666666666
+      ],
+      "vllm_reported": 797.3655765697072,
+      "vllm_recomputed": 797.3655765697072,
+      "delta_pct": [
+        2.186503147689952,
+        1.8876021914201186
+      ]
+    },
+    {
+      "metric": "Mean output tokens",
+      "ours": [
+        127.64490861618799,
+        127.60471204188482
+      ],
+      "vllm_reported": 129.21,
+      "vllm_recomputed": 129.21,
+      "delta_pct": [
+        -1.211277287990107,
+        -1.2423867797501618
+      ]
+    },
+    {
+      "metric": "n",
+      "ours": [
+        383,
+        382
+      ],
+      "vllm_reported": 400,
+      "vllm_recomputed": 400
+    }
+  ],
+  "vllm_mean_check": [
+    {
+      "metric": "TTFT",
+      "reported_ms": 32.69654814735986,
+      "recomputed_ms": 32.69654814735986,
+      "delta_pct": 0
+    },
+    {
+      "metric": "TPOT",
+      "reported_ms": 9.796809183349135,
+      "recomputed_ms": 9.79674968411489,
+      "delta_pct": -0.0006073327869489833
+    },
+    {
+      "metric": "E2E",
+      "reported_ms": 1288.7647239677608,
+      "recomputed_ms": 1288.7572326150257,
+      "delta_pct": -0.0005812816409207269
+    }
+  ],
+  "vllm_without_start_burst": {
+    "excluded": 8,
+    "ttft": {
+      "n": 392,
+      "p50_ms": 31.73772431910038,
+      "p95_ms": 35.71306494995952,
+      "p99_ms": 37.44384320452809
+    }
+  },
+  "vllm_steady_state": {
+    "trim_s": 10,
+    "from_s": 10,
+    "to_s": 53.688905315008014,
+    "sends": 271,
+    "span_s": 43.43461175914854,
+    "rps": 6.216240667631396,
+    "ok": true
+  },
+  "overall_rps_delta_pct": [
+    3.4394416107446917,
+    3.1693647396983473
+  ],
+  "engine": [
+    {
+      "label": "ours (a)",
+      "span": "measured window",
+      "from_unix_ms": 1790557458209,
+      "to_unix_ms": 1790557519209,
+      "ttft_count": 383,
+      "uncached_prompt_tokens_per_request": 1.5848563968668408,
+      "engine_mean_ttft_ms": 27.667663738559494,
+      "unique_tokens": 100,
+      "min_uncached_tokens": 90,
+      "ok": true,
+      "cached": true,
+      "note": "prefilled 1.6 uncached prompt tokens per request, under 90.0 (0.9 × its 100-token unique part): its prompts were served from the prefix cache"
+    },
+    {
+      "label": "ours (b)",
+      "span": "measured window",
+      "from_unix_ms": 1790557604049,
+      "to_unix_ms": 1790557665048,
+      "ttft_count": 387,
+      "uncached_prompt_tokens_per_request": 1,
+      "engine_mean_ttft_ms": 27.715306565435046,
+      "unique_tokens": 100,
+      "min_uncached_tokens": 90,
+      "ok": true,
+      "cached": true,
+      "note": "prefilled 1.0 uncached prompt tokens per request, under 90.0 (0.9 × its 100-token unique part): its prompts were served from the prefix cache"
+    },
+    {
+      "label": "vLLM",
+      "span": "whole file",
+      "from_unix_ms": 1790557520613,
+      "to_unix_ms": 1790557594613,
+      "ttft_count": 416,
+      "uncached_prompt_tokens_per_request": 106.03846153846153,
+      "engine_mean_ttft_ms": 30.755360539142902,
+      "unique_tokens": 100,
+      "min_uncached_tokens": 90,
+      "ok": true,
+      "cached": false
+    }
+  ],
+  "valid": false,
+  "warnings": [
+    "ours (a): prefilled 1.6 uncached prompt tokens per request, under 90.0 (0.9 × its 100-token unique part): its prompts were served from the prefix cache. The comparison is not valid.",
+    "ours (b): prefilled 1.0 uncached prompt tokens per request, under 90.0 (0.9 × its 100-token unique part): its prompts were served from the prefix cache. The comparison is not valid."
+  ]
+}
