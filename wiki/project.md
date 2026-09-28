@@ -20,7 +20,7 @@ Slides are drafted 2026-09-29.
 | Go bench: client, SSE parser, closed-loop runner | `done` | `internal/openai`, `internal/loadgen` |
 | Seeded prompts with a predicted token count; `bench prompts verify` | `done` (verified on the engine) | `internal/prompts` |
 | `bench run`: sweep, readiness wait, run directory | `done` | `cmd/bench`, `internal/results` |
-| 1 Hz samplers (engine `/metrics`, nvidia-smi) | `todo` | `internal/sampler` |
+| 1 Hz samplers (engine `/metrics`, nvidia-smi) | `done` | `internal/sampler`, `bench sample`, `bench run` |
 | Fake server + integration tests | `done` | `internal/fakeserver` |
 | Cross-check against `vllm bench serve` | `todo` | `results/verify/` |
 | Baseline sweeps, both profiles | `todo` | `results/` |

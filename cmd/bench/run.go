@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"net/http"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -15,6 +16,7 @@ import (
 	"github.com/wrbooth/vllm-serve-bench/internal/openai"
 	"github.com/wrbooth/vllm-serve-bench/internal/prompts"
 	"github.com/wrbooth/vllm-serve-bench/internal/results"
+	"github.com/wrbooth/vllm-serve-bench/internal/sampler"
 )
 
 // readyPoll is how often the readiness wait polls /v1/models.
@@ -26,6 +28,8 @@ type runFlags struct {
 	warmup, duration, requestTimeout, ready   time.Duration
 	seed                                      uint64
 	naturalStop                               bool
+	sampleInterval                            time.Duration
+	gpuSampler                                bool
 }
 
 func (f *runFlags) register(fs *flag.FlagSet) {
@@ -43,6 +47,8 @@ func (f *runFlags) register(fs *flag.FlagSet) {
 	fs.StringVar(&f.engineArgv, "engine-argv", "", "the running engine's argv, from `deploy/compose/engine.sh argv`; recorded verbatim")
 	fs.StringVar(&f.engineImage, "engine-image", "", "engine image as ref@digest, from the compose .env; recorded verbatim")
 	fs.BoolVar(&f.naturalStop, "natural-stop", false, "let requests stop at EOS (ignore_eos off); output length then varies")
+	fs.DurationVar(&f.sampleInterval, "sample-interval", time.Second, "engine and GPU telemetry interval for the whole sweep; 0 turns the samplers off")
+	fs.BoolVar(&f.gpuSampler, "gpu-sampler", true, "sample nvidia-smi (off where there is no GPU, e.g. tests)")
 }
 
 // check validates the flags and returns the concurrency levels.
@@ -158,11 +164,25 @@ func run(ctx context.Context, f *runFlags, levels []int, cfg *results.Config, st
 	if err != nil {
 		return err
 	}
+	collectFacts(ctx, f, cfg, stderr)
 	if err := dir.WriteConfig(cfg); err != nil {
 		return err
 	}
 
+	// The samplers cover the whole sweep, warmups included, so the engine's
+	// state going into each measured window is on record too.
+	sctx, stopSamplers := context.WithCancel(ctx)
+	samplerDone := make(chan error, 1)
+	if f.sampleInterval > 0 {
+		go func() { samplerDone <- runSamplers(sctx, dir.Path, f.sampleInterval, samplerSources(f)) }()
+	} else {
+		samplerDone <- nil
+	}
 	rows, runErr := sweep(ctx, f, levels, g, client, dir, cfg.RunID, stderr)
+	stopSamplers()
+	if err := <-samplerDone; err != nil {
+		runErr = errors.Join(runErr, fmt.Errorf("telemetry: %w", err))
+	}
 
 	check := results.CheckPromptTokens(rows, g.PromptTokens())
 	cfg.PromptTokens = &check
@@ -253,4 +273,46 @@ func promptWarning(c *results.PromptTokenCheck) string {
 			c.Mismatches, c.Checked, c.Predicted, c.Observed)
 	}
 	return ""
+}
+
+func metricsURL(baseURL string) string { return strings.TrimSuffix(baseURL, "/") + "/metrics" }
+
+// samplerSources are the telemetry files a run writes next to its requests.
+func samplerSources(f *runFlags) map[string]sampler.Source {
+	src := map[string]sampler.Source{
+		// A scrape can never take longer than the interval, or rows pile up.
+		results.VLLMMetricsFile: &sampler.Engine{URL: metricsURL(f.baseURL), Client: &http.Client{Timeout: f.sampleInterval * 9 / 10}},
+	}
+	if f.gpuSampler {
+		src[results.GPUFile] = &sampler.GPU{}
+	}
+	return src
+}
+
+// collectFacts fills the engine and host facts in cfg before the sweep. A
+// fact that cannot be read is a warning, not a failure: the run is still
+// valid, but the gap must be visible in config.json.
+func collectFacts(ctx context.Context, f *runFlags, cfg *results.Config, stderr io.Writer) {
+	warn := func(w string) {
+		cfg.Warnings = append(cfg.Warnings, w)
+		_, _ = fmt.Fprintln(stderr, "WARNING:", w)
+	}
+	e := &sampler.Engine{URL: metricsURL(f.baseURL), Client: &http.Client{Timeout: 10 * time.Second}}
+	if _, err := e.Sample(ctx); err != nil {
+		warn("engine facts: /metrics: " + err.Error())
+	}
+	facts := engineFacts(e.Last, f.engineArgv)
+	if facts.MaxNumSeqs == nil || facts.MaxNumBatchedTokens == nil {
+		warn("engine argv lacks --max-num-seqs or --max-num-batched-tokens: the scheduler budgets the engine resolved are not on record")
+	}
+	cfg.Engine.Facts = facts
+	if !f.gpuSampler {
+		return
+	}
+	name, driver, mem, err := (&sampler.GPU{}).Host(ctx)
+	if err != nil {
+		warn("host facts: " + err.Error())
+		return
+	}
+	cfg.Host = &results.HostFacts{GPUName: name, Driver: driver, GPUMemoryMiB: mem}
 }

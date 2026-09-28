@@ -67,6 +67,10 @@ type Server struct {
 	// MultiToken maps words that the toy tokenizer counts as more than one
 	// token to their count.
 	MultiToken map[string]int
+	// Metrics is the body of GET /metrics (Prometheus text); empty answers
+	// 404, like a server without a metrics endpoint.
+	Metrics string
+
 	// CountPrompt reports usage.prompt_tokens as the toy tokenizer's count
 	// of the request's messages instead of PromptTokens.
 	CountPrompt bool
@@ -137,11 +141,18 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case r.Method == http.MethodPost && r.URL.Path == "/tokenize":
 		s.tokenize(w, r)
 		return
+	case r.Method == http.MethodGet && r.URL.Path == "/metrics":
+		if s.Metrics == "" {
+			http.NotFound(w, r)
+			return
+		}
+		_, _ = w.Write([]byte(s.Metrics))
+		return
 	}
 	s.chat(w, r)
 }
 
-// chat serves every request that is not /v1/models or /tokenize, so a
+// chat serves every request that is not /v1/models, /tokenize or /metrics, so a
 // request to a wrong path is counted and answered 404.
 func (s *Server) chat(w http.ResponseWriter, r *http.Request) {
 	n := s.requests.Add(1)
