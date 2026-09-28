@@ -128,7 +128,7 @@ lint-compose: ## docker compose config -q for every engine config (needs the Doc
 	@command -v docker >/dev/null || { echo "lint-compose: docker CLI not found"; exit 1; }
 	@cd deploy/compose && for f in engine/*.env; do \
 		echo "compose config: $$f"; \
-		MODEL=dummy/model HF_CACHE=/nonexistent/hf-cache \
+		MODEL=dummy/model HF_CACHE=/nonexistent/hf-cache MODELS_DIR=/nonexistent/models \
 			docker compose --env-file .env --env-file "$$f" --profile bench config -q || exit 1; \
 	done
 
