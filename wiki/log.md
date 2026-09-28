@@ -624,3 +624,43 @@ throughput 32/64/128/192. Committed before the sweep finished.
   227,200 tokens against the baseline's 241,680 (−6%). A larger step budget
   reserves more activation memory, so less capacity is left at c=192, where
   the baseline was already KV-bound. It is part of this change's cost.
+
+## [2026-09-27] work | Experiment A result: hypothesis partly supported; SLO-level goodput unchanged
+
+Data: [results/a-mnbt8192/](../results/a-mnbt8192/), compared at matching
+levels against the baseline runs. All levels are valid: 0 errors, 0
+prompt-token mismatches, and 113 or about 1,500 uncached tokens per request.
+These figures were read off the files by hand; `bench report` will generate
+them for docs/03.
+
+- **Supported:** a larger budget admits documents faster.
+  - Throughput TTFT p95 fell 12.6% at c=64 (526 to 460 ms) and 24.5% at
+    c=128 (984 to 743 ms).
+  - Output tok/s rose 4.9% at c=128 and 5.4% at c=192, where admission and
+    queueing matter.
+- **Refuted:**
+  - The dip from c=64 to c=128 survives: 1,594 to 1,482 tok/s (−7%) against
+    the baseline's −11%. The prefill budget is at most part of its cause; the
+    rest is still unexplained. The power cap is the remaining candidate,
+    untested.
+  - TPOT did not rise as predicted; it was flat or 1–8% lower.
+- **Cost, as flagged at startup:** the KV pool is 6% smaller (227,200 tokens).
+  At c=192 that shows as 44 preemptions against 19, and TTFT p95 15% worse
+  (11.6 s against 10.1 s).
+- **Against the SLOs:**
+  - **Interactive:** the boundary is unchanged. c=64 passes and c=128 fails,
+    at TTFT 113 ms and TPOT 26.0 ms, which are near misses again. Compliant
+    goodput is +1.7%.
+  - **Throughput:** c=64 passes (13.3 s) and c=128 fails (26.6 s). Compliant
+    goodput is +0.6%.
+- **Interactive as the control:** every metric moved at most 1.7%, in A's
+  favour. With one run per config that cannot be told apart from run-to-run
+  noise. The baseline's own repeat matched to within 0.7 ms TTFT p50 at
+  1–32, but was not repeated above that.
+
+Trade-off, for the write-up: 8192 buys faster admission of long prompts, with
+lower TTFT at mid-to-high load and about 5% more throughput past the knee. It
+costs 6% of KV capacity, which shows up as more preemption at the top. It
+does not move either SLO boundary. For this card and these SLOs the default
+2048 stays; A is reported as a measured null result on goodput, with a real
+effect on TTFT.
