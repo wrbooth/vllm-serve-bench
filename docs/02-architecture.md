@@ -41,7 +41,9 @@ the engine so that TTFT is not polluted by a LAN hop.
 | Health | `/health` for liveness, first successful `/v1/models` for readiness | The bench waits on readiness before starting a run and records model load time. |
 
 Baseline engine flags are the vLLM defaults except `--gpu-memory-utilization 0.90` and
-`--max-model-len 8192`. That includes prefix caching, which the V1 engine turns on by default:
+`--max-model-len 8192`. The scheduler budgets `--max-num-seqs 256 --max-num-batched-tokens 2048`
+are passed explicitly at their default values for this card, because neither the startup log nor
+`/metrics` shows resolved defaults and the recorded argv has to. The baseline includes prefix caching, which the V1 engine turns on by default:
 the baseline is what a stock deployment runs, and B1 measures what that default is worth by
 turning it off. Every run records the full engine command line into `config.json`
 because vLLM takes the **last** occurrence of a repeated flag; I have been bitten by a wrapper
@@ -56,7 +58,8 @@ One binary, five subcommands.
 bench run      --profile interactive|throughput --concurrency 1,2,4,8,16 --duration 60s \
                --warmup 10s --base-url http://vllm:8000 --out results/
 bench prompts verify --base-url ... [--write internal/prompts]   (word list + prompt-token check)
-bench sample   (internal: 1 Hz vllm /metrics + nvidia-smi samplers, started by `run`)
+bench sample   --out DIR [--duration]  (1 Hz vllm /metrics + nvidia-smi; `run` starts the same
+               samplers itself; standalone for load `run` does not drive, e.g. the cross-check)
 bench report   --runs results/... --out docs/03-results.md   (tables, deltas, SVG charts)
 bench verify   --against vllm-bench.json                      (cross-check numbers, see below)
 ```
@@ -123,8 +126,8 @@ the baseline KV pool on purpose, so preemption is measured rather than theoretic
 tokens roughly fills the pool, and 192 and 256 overflow it. It stops at 256 because that is vLLM's
 default `max_num_seqs` on this card (32 GB falls in the "other hardware" branch of the pinned
 version's defaults, with `max_num_batched_tokens` 2048), so every level up to the top runs
-concurrently rather than queueing behind the scheduler's sequence cap. Both resolved defaults are
-recorded in each run's `config.json`.
+concurrently rather than queueing behind the scheduler's sequence cap. Both values are set
+explicitly in the baseline's flags, so they appear in each run's recorded argv.
 
 ### Telemetry samplers
 
@@ -132,7 +135,7 @@ Both run for the whole sweep and write one row per second with a shared monotoni
 they line up with request rows.
 
 - **vLLM sampler** scrapes `/metrics` and records: `num_requests_running`, `num_requests_waiting`,
-  `kv_cache_usage_perc` (or `gpu_cache_usage_perc`), `num_preemptions_total`,
+  `kv_cache_usage_perc` (the older `gpu_cache_usage_perc` is gone in 0.29), `num_preemptions_total`,
   `prefix_cache_queries_total`, `prefix_cache_hits_total`, `prompt_tokens_total`,
   `generation_tokens_total`, and the engine's own TTFT / e2e histograms for cross-checking.
 - **GPU sampler** runs `nvidia-smi --query-gpu=utilization.gpu,memory.used,power.draw,

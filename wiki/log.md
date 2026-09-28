@@ -283,3 +283,25 @@ image digest in `config.json`. At c=4 the closed-loop workers ran in lockstep
 (fixed output length with `ignore_eos`), so each cycle's prompts arrive
 together and TTFT includes a batched prefill. That is real behaviour of this
 load model, worth remembering when reading the interactive TTFT curve.
+
+## [2026-09-27] decision | Samplers: a failed tick is a row, a missing metric is an error
+
+[internal/sampler](../internal/sampler/) writes one CSV row per tick. A scrape
+that fails still produces a row, with empty values and the reason in an
+`error` column, so a telemetry gap shows up in the data instead of silently
+narrowing it. A metric missing from a scrape fails the whole row rather than
+reading as zero, because "0 preemptions" and "not measured" must not look
+alike. For the same reason nvidia-smi's `[N/A]` is recorded as empty, not 0.
+Metric names follow vLLM 0.29.0, where `gpu_cache_usage_perc` no longer
+exists. Tests run against a real `/metrics` scrape committed as a fixture.
+`bench sample` runs the samplers standalone, for load `bench run` does not
+drive (the `vllm bench serve` cross-check). First live run: 1 s cadence on both
+files, and the KV pool read from `/metrics` matches the startup log (241,680).
+
+## [2026-09-27] decision | Scheduler budgets are explicit flags at their default values
+
+`--max-num-seqs 256 --max-num-batched-tokens 2048` are what vLLM resolves on
+this card anyway, but no log line or metric shows a resolved default. Passing
+them explicitly puts them in the recorded argv, which is the record the
+contract trusts, and makes Experiment A a visible change to two numbers. The
+engine restarted with them kept the same KV pool.
