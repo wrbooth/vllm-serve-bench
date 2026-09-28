@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os/exec"
+	"strconv"
 	"strings"
 )
 
@@ -52,6 +53,29 @@ func parseGPU(out string) ([]string, error) {
 		parts[i] = p
 	}
 	return parts, nil
+}
+
+// Host reports the GPU's name, driver version and total memory in MiB, for
+// the run's config.json.
+func (g *GPU) Host(ctx context.Context) (name, driver string, memMiB int, err error) {
+	run := g.Run
+	if run == nil {
+		run = nvidiaSMI
+	}
+	out, err := run(ctx, "--query-gpu=name,driver_version,memory.total", "--format=csv,noheader,nounits", "--id=0")
+	if err != nil {
+		return "", "", 0, fmt.Errorf("nvidia-smi: %w", err)
+	}
+	line, _, _ := strings.Cut(strings.TrimSpace(string(out)), "\n")
+	parts := strings.Split(line, ",")
+	if len(parts) != 3 {
+		return "", "", 0, fmt.Errorf("nvidia-smi: got %q, want name, driver, memory", line)
+	}
+	memMiB, err = strconv.Atoi(strings.TrimSpace(parts[2]))
+	if err != nil {
+		return "", "", 0, fmt.Errorf("nvidia-smi: memory.total %q: %w", parts[2], err)
+	}
+	return strings.TrimSpace(parts[0]), strings.TrimSpace(parts[1]), memMiB, nil
 }
 
 func nvidiaSMI(ctx context.Context, args ...string) ([]byte, error) {

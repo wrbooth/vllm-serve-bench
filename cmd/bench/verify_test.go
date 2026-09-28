@@ -42,7 +42,12 @@ func calibratedFake(t *testing.T) *fakeserver.Server {
 	if overhead < 0 || defaults < 0 {
 		t.Fatalf("embedded fixed counts %v cannot be modelled by the toy tokenizer", v.Fixed.Profiles)
 	}
+	metrics, err := os.ReadFile("../../internal/sampler/testdata/vllm-0.29.0-metrics.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
 	return &fakeserver.Server{
+		Metrics:       string(metrics), // a real scrape: KV pool 241680, prefix caching on
 		Models:        []string{"fake"},
 		ChatOverhead:  overhead,
 		DefaultSystem: strings.Repeat("sys ", defaults),

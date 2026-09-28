@@ -8,11 +8,10 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"path/filepath"
 	"strings"
-	"sync"
 	"time"
 
+	"github.com/wrbooth/vllm-serve-bench/internal/results"
 	"github.com/wrbooth/vllm-serve-bench/internal/sampler"
 )
 
@@ -64,36 +63,9 @@ func sample(ctx context.Context, args []string, stderr io.Writer) error {
 		_, _ = fmt.Fprintf(stderr, "bench sample: engine KV pool %d tokens\n", kv)
 	}
 
-	sources := map[string]sampler.Source{"vllm_metrics.csv": engine}
+	sources := map[string]sampler.Source{results.VLLMMetricsFile: engine}
 	if !*noGPU {
-		sources["gpu.csv"] = &sampler.GPU{}
+		sources[results.GPUFile] = &sampler.GPU{}
 	}
-	var wg sync.WaitGroup
-	errs := make(chan error, len(sources))
-	for name, src := range sources {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			errs <- sampleTo(ctx, filepath.Join(*out, name), src, *interval)
-		}()
-	}
-	wg.Wait()
-	close(errs)
-	var all []error
-	for err := range errs {
-		all = append(all, err)
-	}
-	return errors.Join(all...)
-}
-
-func sampleTo(ctx context.Context, path string, src sampler.Source, interval time.Duration) error {
-	f, err := os.Create(path)
-	if err != nil {
-		return err
-	}
-	t := time.NewTicker(interval)
-	defer t.Stop()
-	s := &sampler.Sampler{Source: src, Now: time.Now}
-	runErr := s.Run(ctx, t.C, f)
-	return errors.Join(runErr, f.Close())
+	return runSamplers(ctx, *out, *interval, sources)
 }

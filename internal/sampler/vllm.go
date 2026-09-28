@@ -52,6 +52,17 @@ func (m Metrics) KVCacheTokens() (int, bool) {
 	return n, err == nil
 }
 
+// PrefixCaching reports whether the engine runs with prefix caching, from
+// vllm:cache_config_info.
+func (m Metrics) PrefixCaching() (on, ok bool) {
+	v, ok := m.Info["vllm:cache_config_info"]["enable_prefix_caching"]
+	if !ok {
+		return false, false
+	}
+	b, err := strconv.ParseBool(v)
+	return b, err == nil
+}
+
 // ParseMetrics reads the Prometheus text format: comment lines, then
 // `name{label="value",...} value [timestamp]` or `name value`.
 func ParseMetrics(r io.Reader) (Metrics, error) {

@@ -17,7 +17,7 @@ import (
 )
 
 const (
-	testArgv  = "vllm serve fake --gpu-memory-utilization 0.90 --max-model-len 8192"
+	testArgv  = "vllm serve fake --gpu-memory-utilization 0.90 --max-model-len 8192 --max-num-seqs 256 --max-num-batched-tokens 2048"
 	testImage = "vllm/vllm-openai:v0.29.0@sha256:0123abcd"
 )
 
@@ -28,6 +28,7 @@ func runArgs(url, out string, extra ...string) []string {
 		"--warmup", "50ms", "--duration", "250ms",
 		"--base-url", url, "--model", "fake", "--seed", "3", "--out", out,
 		"--engine-config", "test", "--engine-argv", testArgv, "--engine-image", testImage,
+		"--sample-interval", "50ms", "--gpu-sampler=false", // no nvidia-smi on a test machine
 	}, extra...)
 }
 
@@ -103,6 +104,17 @@ func TestRunWritesAConsistentRunDirectory(t *testing.T) {
 	if cfg.Engine.Argv != testArgv || cfg.Engine.Image != testImage || cfg.Engine.Config != "test" {
 		t.Errorf("engine = %+v, want the flags verbatim", cfg.Engine)
 	}
+	// Engine facts: KV pool and prefix caching from the fake's real
+	// /metrics scrape, scheduler budgets from the argv.
+	if fa := cfg.Engine.Facts; fa == nil || fa.KVCacheTokens == nil || *fa.KVCacheTokens != 241680 ||
+		fa.PrefixCaching == nil || !*fa.PrefixCaching ||
+		fa.MaxNumSeqs == nil || *fa.MaxNumSeqs != 256 || fa.MaxNumBatchedTokens == nil || *fa.MaxNumBatchedTokens != 2048 {
+		t.Errorf("engine facts = %+v; want KV 241680, prefix caching on, budgets 256/2048", cfg.Engine.Facts)
+	}
+	if cfg.Host != nil {
+		t.Errorf("host = %+v with --gpu-sampler=false; want none", cfg.Host)
+	}
+	checkTelemetry(t, d.path)
 	if cfg.Flags["duration"] != "250ms" || cfg.Flags["natural-stop"] != "false" || cfg.Flags["request-timeout"] != "5m0s" {
 		t.Errorf("flags = %v; want every flag, defaults included", cfg.Flags)
 	}
@@ -148,6 +160,92 @@ func TestRunWritesAConsistentRunDirectory(t *testing.T) {
 	if pc := cfg.PromptTokens; pc == nil || pc.Checked != len(d.rows) || pc.Mismatches != 0 || pc.Predicted != predicted {
 		t.Errorf("prompt_token_check = %+v, want %d rows checked against %d, no mismatches", pc, len(d.rows), predicted)
 	}
+}
+
+// checkTelemetry: the engine sampler ran for the whole sweep (two levels of
+// 50 ms warmup + 250 ms window = 600 ms at 50 ms is ~12 ticks; at least 5
+// leaves a wide margin for a loaded CI machine) and every row is a clean
+// scrape; the GPU sampler was off, so there is no gpu.csv.
+func checkTelemetry(t *testing.T, dir string) {
+	t.Helper()
+	b, err := os.ReadFile(filepath.Join(dir, results.VLLMMetricsFile))
+	if err != nil {
+		t.Fatal(err)
+	}
+	lines := strings.Split(strings.TrimSpace(string(b)), "\n")
+	if !strings.HasPrefix(lines[0], "t_unix_ms,vllm:num_requests_running,") || len(lines) < 6 {
+		t.Fatalf("vllm_metrics.csv: header %q and %d rows; want the sampler header and at least 5 rows", lines[0], len(lines)-1)
+	}
+	for _, l := range lines[1:] {
+		if !strings.HasSuffix(l, ",") {
+			t.Errorf("telemetry row %q has an error; the fake serves a valid scrape", l)
+		}
+	}
+	if _, err := os.Stat(filepath.Join(dir, results.GPUFile)); !os.IsNotExist(err) {
+		t.Errorf("gpu.csv exists (%v) with --gpu-sampler=false", err)
+	}
+}
+
+// Missing facts do not fail a run; each gap is a warning in config.json.
+func TestRunWarnsWhenEngineFactsAreMissing(t *testing.T) {
+	t.Parallel()
+	srv := calibratedFake(t)
+	srv.Metrics = "" // no /metrics endpoint
+	srv.Tokens = 4
+	out := t.TempDir()
+	args := runArgs(serve(t, srv), out, "--concurrency", "1")
+	for i, a := range args {
+		if a == testArgv {
+			args[i] = "vllm serve fake" // no scheduler budgets in the argv
+		}
+	}
+	code, stdout, stderr := runBench(t, args...)
+	if code != 0 {
+		t.Fatalf("exit %d, stderr %q", code, stderr)
+	}
+	d := readRunDir(t, out, stdout)
+	joined := strings.Join(d.config.Warnings, "\n")
+	if len(d.config.Warnings) != 2 || !strings.Contains(joined, "engine facts: /metrics") ||
+		!strings.Contains(joined, "--max-num-seqs") {
+		t.Errorf("warnings %q; want one for /metrics and one for the budgets", d.config.Warnings)
+	}
+	if fa := d.config.Engine.Facts; fa == nil || fa.KVCacheTokens != nil || fa.MaxNumSeqs != nil {
+		t.Errorf("facts %+v; want recorded but empty", fa)
+	}
+}
+
+func TestArgvIntKeepsTheLastOccurrenceLikeVLLM(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		argv string
+		want *int
+	}{
+		{"vllm serve m --max-num-seqs 256", ptr(256)},
+		{"vllm serve m --max-num-seqs=128", ptr(128)},
+		// A wrapper appending a default after the tuned value: vLLM keeps
+		// the last one, and so must the record.
+		{"vllm serve m --max-num-seqs 64 --max-num-seqs 256", ptr(256)},
+		{"vllm serve m --max-num-seqs=64 --max-num-seqs 32", ptr(32)},
+		{"vllm serve m", nil},
+		{"vllm serve m --max-num-seqs", nil},      // flag with no value
+		{"vllm serve m --max-num-seqs lots", nil}, // not an integer
+		{"vllm serve m --max-num-seqs-extra 9", nil},
+	}
+	for _, tc := range cases {
+		got := argvInt(tc.argv, "--max-num-seqs")
+		if (got == nil) != (tc.want == nil) || (got != nil && *got != *tc.want) {
+			t.Errorf("argvInt(%q) = %v, want %v", tc.argv, deref(got), deref(tc.want))
+		}
+	}
+}
+
+func ptr(n int) *int { return &n }
+
+func deref(p *int) any {
+	if p == nil {
+		return nil
+	}
+	return *p
 }
 
 // checkLevelAgainstRows recomputes a level's counts and TTFT percentiles

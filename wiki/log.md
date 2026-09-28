@@ -305,3 +305,19 @@ this card anyway, but no log line or metric shows a resolved default. Passing
 them explicitly puts them in the recorded argv, which is the record the
 contract trusts, and makes Experiment A a visible change to two numbers. The
 engine restarted with them kept the same KV pool.
+
+## [2026-09-27] work | Samplers wired into `bench run`
+
+Every run directory now holds `vllm_metrics.csv` and `gpu.csv`. Both cover
+the whole sweep, warmups included, so the engine's state going into each
+window is on record. `config.json` gains `engine.facts` and `host`:
+
+- the KV pool and prefix-caching state, from one `/metrics` scrape before the
+  sweep;
+- the scheduler budgets, parsed from the recorded argv, last occurrence
+  winning as in vLLM;
+- the GPU name, driver and memory, from `nvidia-smi`.
+
+A fact that cannot be read is a warning, never a silent gap. Live on the 5090
+(interactive, c=1 and c=4, not kept): 0 warnings, 42 telemetry rows per file,
+and the facts matched the startup log.

@@ -73,6 +73,54 @@ func TestKVCacheTokensComesFromCacheConfigInfo(t *testing.T) {
 	}
 }
 
+func TestPrefixCachingComesFromCacheConfigInfo(t *testing.T) {
+	t.Parallel()
+	m, err := ParseMetrics(strings.NewReader(string(fixture(t))))
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The fixture's engine ran the baseline: enable_prefix_caching="True".
+	if on, ok := m.PrefixCaching(); !ok || !on {
+		t.Fatalf("PrefixCaching = %v, %v; want true, true", on, ok)
+	}
+	off := Metrics{Info: map[string]map[string]string{"vllm:cache_config_info": {"enable_prefix_caching": "False"}}}
+	if on, ok := off.PrefixCaching(); !ok || on {
+		t.Fatalf("PrefixCaching on False = %v, %v; want false, true", on, ok)
+	}
+	if _, ok := (Metrics{}).PrefixCaching(); ok {
+		t.Fatal("PrefixCaching on an empty scrape reported ok")
+	}
+}
+
+func TestGPUHostParsesNameDriverAndMemory(t *testing.T) {
+	t.Parallel()
+	var gotArgs []string
+	g := &GPU{Run: func(_ context.Context, args ...string) ([]byte, error) {
+		gotArgs = args
+		return []byte("NVIDIA GeForce RTX 5090, 595.58.03, 32607\n"), nil
+	}}
+	name, driver, mem, err := g.Host(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if name != "NVIDIA GeForce RTX 5090" || driver != "595.58.03" || mem != 32607 {
+		t.Fatalf("Host = %q, %q, %d", name, driver, mem)
+	}
+	if gotArgs[0] != "--query-gpu=name,driver_version,memory.total" {
+		t.Fatalf("args = %q", gotArgs)
+	}
+	for name, out := range map[string]string{"two fields": "a, b\n", "memory not a number": "a, b, lots\n"} {
+		bad := &GPU{Run: func(context.Context, ...string) ([]byte, error) { return []byte(out), nil }}
+		if _, _, _, err := bad.Host(context.Background()); err == nil {
+			t.Errorf("%s: want an error", name)
+		}
+	}
+	failing := &GPU{Run: func(context.Context, ...string) ([]byte, error) { return nil, errors.New("exit 9") }}
+	if _, _, _, err := failing.Host(context.Background()); err == nil {
+		t.Error("command failure: want an error")
+	}
+}
+
 func TestSplitSampleHandlesQuotedLabelValues(t *testing.T) {
 	t.Parallel()
 	cases := []struct {

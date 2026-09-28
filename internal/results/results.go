@@ -30,6 +30,9 @@ const (
 	ConfigFile   = "config.json"
 	RequestsFile = "requests.jsonl"
 	SummaryFile  = "summary.json"
+	// VLLMMetricsFile and GPUFile are the 1 Hz telemetry (internal/sampler).
+	VLLMMetricsFile = "vllm_metrics.csv"
+	GPUFile         = "gpu.csv"
 )
 
 // Row is one line of requests.jsonl: one request of the measured window of
