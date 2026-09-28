@@ -8,6 +8,10 @@
 #
 # bench run resets the prefix cache before every level and records the
 # engine's argv, image digest, KV pool and host in each run's config.json.
+#
+# LEVELS_<PROFILE> (e.g. LEVELS_INTERACTIVE=32,64,128,256) overrides a
+# profile's default concurrency list, for experiments that only need the
+# levels around the baseline's knee.
 set -euo pipefail
 
 config=${1:?usage: $0 <engine-config> <out-dir> [profile ...]}
@@ -23,7 +27,10 @@ argv=$("$compose/engine.sh" argv)
 image=$(sed -n 's/^VLLM_IMAGE=//p' "$compose/.env")
 
 for p in "${profiles[@]}"; do
-	"$here/bin/bench" run --profile "$p" --warmup 10s --duration 60s --seed 1 \
+	var=LEVELS_${p^^}
+	levels=()
+	[[ -n ${!var:-} ]] && levels=(--concurrency "${!var}")
+	"$here/bin/bench" run --profile "$p" "${levels[@]}" --warmup 10s --duration 60s --seed 1 \
 		--base-url http://127.0.0.1:8000 --model "$model" --out "$out" \
 		--engine-config "$config" --engine-argv "$argv" --engine-image "$image"
 done
