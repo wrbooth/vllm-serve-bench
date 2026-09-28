@@ -60,6 +60,9 @@ type Server struct {
 
 	// ChatOverhead is what the toy tokenizer adds to a chat (the template).
 	ChatOverhead int
+	// DefaultSystem is counted into a chat that has no system message, as
+	// Qwen's template inserts its own.
+	DefaultSystem string
 	// MultiToken maps words that the toy tokenizer counts as more than one
 	// token to their count.
 	MultiToken map[string]int
@@ -258,6 +261,9 @@ func (s *Server) countText(text string) int {
 
 func (s *Server) countChat(msgs []message) int {
 	n := s.ChatOverhead
+	if len(msgs) == 0 || msgs[0].Role != "system" {
+		n += s.countText(s.DefaultSystem)
+	}
 	for i := range msgs {
 		n += s.countText(msgs[i].Content)
 	}

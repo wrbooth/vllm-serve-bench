@@ -1,0 +1,8 @@
+{
+  "model": "Qwen/Qwen2.5-7B-Instruct",
+  "source": "offline pre-screen: Hugging Face tokenizer.json with the chat template rendered by hand; not yet confirmed against the engine",
+  "profiles": {
+    "interactive": 33,
+    "throughput": 41
+  }
+}

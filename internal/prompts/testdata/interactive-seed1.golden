@@ -1,0 +1,40 @@
+[
+  {
+    "role": "system",
+    "content": "You are a helpful assistant. Use the reference notes below to answer the question.\n\nNotes: aqp apb asr bel anw aab bfs bgj bex aix ath ajw axe bhc bjv aor ajs bgr bgx bcq ays bkn avu biu anq avq ary bbu akp amc anj ako bfh bjv amn bkw avu aqj ayq arb aif aqa ads atg awv bdp amn awk amm amy aue ahq aqs aoe bgw bgn blc asj bfx bdk aei adj aqw aeq blq abp bge bct bks biu ber ayy aed ast bix abc agy azn bkb aco atg bag afl bis bjh abi atv beb aod ase aiu bdy bbm bda bcr aqv aqe aml bds aae blr awb agu aec bfl aeo aqj aim bhj aad bcr bep bhl awc axn abz agr anp abc aaa ajx abo avr ail aws alw bht aas ais aqf abc bcg bim bfd awv aub bbf aem aie avn blo aum bfu aik ajh aah api acn bhy agb bbn aew abd ade bfg bku any atp bar bcr asy bfq aau afb baf big bcj amv bcn ahb aaj bji awt acs bbi bai aqr ack agw aqd ahn aqo amf ang beu adc aod aka bhj awv aeb biz aco bfu bla bbb ajo azy aod ajy acx bcu ajs atu aih bcn asq acz ayz ach bkt ajk aig akk alv all beq bae aym axd adf ank aeu aja bff bah aza aob ajh azt alu aky auk awm agr azy akg aeg bdx azq aqc aot axq aat ang anh bjg asj bdn bdw aig ayl aaj bcp api bfb bau axz bca als aha aop arx agd agh bjq alo ady beb ajz aam ari agy bcv aqk bjv bei bla awj aca bdf bii abb adc bjr bad axv bjh awb avv avc atc awn amu aqc aod akb aci aha bjv"
+  },
+  {
+    "role": "user",
+    "content": "Question: baq baq baq aty beu bck azj azb bhh bhy blr awm aiv aus bdl aeg asc ake ame acp bgw aik aqn azo avh awz bln blq aqk alk bbg axv azu bco aka akk akt bdf bli akw aym acw apz avw bcc auq aze apv abk bee aiz amv ayc ajw bdw aad ajs bfv bho aem agc bjm ada avf bfs amc bkh azh auq aku azc azj aym bkc bdu ake aqu adq aye ath azm ahz acb bbh anj bml aex anb blu ahd ams bln aas bfc apu arq abl aoc azc ank"
+  }
+]
+[
+  {
+    "role": "system",
+    "content": "You are a helpful assistant. Use the reference notes below to answer the question.\n\nNotes: aqp apb asr bel anw aab bfs bgj bex aix ath ajw axe bhc bjv aor ajs bgr bgx bcq ays bkn avu biu anq avq ary bbu akp amc anj ako bfh bjv amn bkw avu aqj ayq arb aif aqa ads atg awv bdp amn awk amm amy aue ahq aqs aoe bgw bgn blc asj bfx bdk aei adj aqw aeq blq abp bge bct bks biu ber ayy aed ast bix abc agy azn bkb aco atg bag afl bis bjh abi atv beb aod ase aiu bdy bbm bda bcr aqv aqe aml bds aae blr awb agu aec bfl aeo aqj aim bhj aad bcr bep bhl awc axn abz agr anp abc aaa ajx abo avr ail aws alw bht aas ais aqf abc bcg bim bfd awv aub bbf aem aie avn blo aum bfu aik ajh aah api acn bhy agb bbn aew abd ade bfg bku any atp bar bcr asy bfq aau afb baf big bcj amv bcn ahb aaj bji awt acs bbi bai aqr ack agw aqd ahn aqo amf ang beu adc aod aka bhj awv aeb biz aco bfu bla bbb ajo azy aod ajy acx bcu ajs atu aih bcn asq acz ayz ach bkt ajk aig akk alv all beq bae aym axd adf ank aeu aja bff bah aza aob ajh azt alu aky auk awm agr azy akg aeg bdx azq aqc aot axq aat ang anh bjg asj bdn bdw aig ayl aaj bcp api bfb bau axz bca als aha aop arx agd agh bjq alo ady beb ajz aam ari agy bcv aqk bjv bei bla awj aca bdf bii abb adc bjr bad axv bjh awb avv avc atc awn amu aqc aod akb aci aha bjv"
+  },
+  {
+    "role": "user",
+    "content": "Question: bba baq baq bau acd asr agq akf aym amb bgb ael acu ara aqi ajx abv bdx ava ahg ahn bcm bcz abr aew bci akz aii ayl and akm aoi blr bgy ael apw aqs bek bbo apj aaa auu bgj aaa biq bbb azy blq azb aiu bap bmb aaq azf arg bbf axf ati app bjx awn alg bao bah bic abg bgm bao aeg aen aec acr aim bdc bgw bdz anz adt and bjp bls abj agi bln bjv akv aps agq bch bgi aeq axj bjo bgx bcf ary bar aws adz bhc"
+  }
+]
+[
+  {
+    "role": "system",
+    "content": "You are a helpful assistant. Use the reference notes below to answer the question.\n\nNotes: aqp apb asr bel anw aab bfs bgj bex aix ath ajw axe bhc bjv aor ajs bgr bgx bcq ays bkn avu biu anq avq ary bbu akp amc anj ako bfh bjv amn bkw avu aqj ayq arb aif aqa ads atg awv bdp amn awk amm amy aue ahq aqs aoe bgw bgn blc asj bfx bdk aei adj aqw aeq blq abp bge bct bks biu ber ayy aed ast bix abc agy azn bkb aco atg bag afl bis bjh abi atv beb aod ase aiu bdy bbm bda bcr aqv aqe aml bds aae blr awb agu aec bfl aeo aqj aim bhj aad bcr bep bhl awc axn abz agr anp abc aaa ajx abo avr ail aws alw bht aas ais aqf abc bcg bim bfd awv aub bbf aem aie avn blo aum bfu aik ajh aah api acn bhy agb bbn aew abd ade bfg bku any atp bar bcr asy bfq aau afb baf big bcj amv bcn ahb aaj bji awt acs bbi bai aqr ack agw aqd ahn aqo amf ang beu adc aod aka bhj awv aeb biz aco bfu bla bbb ajo azy aod ajy acx bcu ajs atu aih bcn asq acz ayz ach bkt ajk aig akk alv all beq bae aym axd adf ank aeu aja bff bah aza aob ajh azt alu aky auk awm agr azy akg aeg bdx azq aqc aot axq aat ang anh bjg asj bdn bdw aig ayl aaj bcp api bfb bau axz bca als aha aop arx agd agh bjq alo ady beb ajz aam ari agy bcv aqk bjv bei bla awj aca bdf bii abb adc bjr bad axv bjh awb avv avc atc awn amu aqc aod akb aci aha bjv"
+  },
+  {
+    "role": "user",
+    "content": "Question: arn baq baq baj auy blh abt azv beq ajp ber aqw adi ble aly bls bjb atb aiz bkz bkt bap anj aiv aln bao bjr alt adq agv aiu bdo afo adr aew avj afs bew bca ahm awk bfd bei anv bbg ats bdm awl azz avs apy agq bdf bls bgt blz aqo bkv agd apu aty bbg bci atm afn axs adg bkf ams atu alh azu ald abv avy bjh bdx adn ava avq air bcr aco bkf afi agn axc adw arf bap bju bfk bgl aag bar akn akq axb bay atf"
+  }
+]
+[
+  {
+    "role": "system",
+    "content": "You are a helpful assistant. Use the reference notes below to answer the question.\n\nNotes: aqp apb asr bel anw aab bfs bgj bex aix ath ajw axe bhc bjv aor ajs bgr bgx bcq ays bkn avu biu anq avq ary bbu akp amc anj ako bfh bjv amn bkw avu aqj ayq arb aif aqa ads atg awv bdp amn awk amm amy aue ahq aqs aoe bgw bgn blc asj bfx bdk aei adj aqw aeq blq abp bge bct bks biu ber ayy aed ast bix abc agy azn bkb aco atg bag afl bis bjh abi atv beb aod ase aiu bdy bbm bda bcr aqv aqe aml bds aae blr awb agu aec bfl aeo aqj aim bhj aad bcr bep bhl awc axn abz agr anp abc aaa ajx abo avr ail aws alw bht aas ais aqf abc bcg bim bfd awv aub bbf aem aie avn blo aum bfu aik ajh aah api acn bhy agb bbn aew abd ade bfg bku any atp bar bcr asy bfq aau afb baf big bcj amv bcn ahb aaj bji awt acs bbi bai aqr ack agw aqd ahn aqo amf ang beu adc aod aka bhj awv aeb biz aco bfu bla bbb ajo azy aod ajy acx bcu ajs atu aih bcn asq acz ayz ach bkt ajk aig akk alv all beq bae aym axd adf ank aeu aja bff bah aza aob ajh azt alu aky auk awm agr azy akg aeg bdx azq aqc aot axq aat ang anh bjg asj bdn bdw aig ayl aaj bcp api bfb bau axz bca als aha aop arx agd agh bjq alo ady beb ajz aam ari agy bcv aqk bjv bei bla awj aca bdf bii abb adc bjr bad axv bjh awb avv avc atc awn amu aqc aod akb aci aha bjv"
+  },
+  {
+    "role": "user",
+    "content": "Question: bfn bfn baq abq afs amu acp agx auf anc bji bfr bmi ahc ban ayn bcz akh amu bcv awo afe afs auh adl bhl ajy agm bif aya bdi bll akt ain bad abl afp ayk bbt axy ade atp aph ber atf aoj aux bcf azv bby avu bej bgb ajt atb bfy azo apc bfq aiw bli bbz bes azf aox ajl atc blg bge aeg bgi ash bdb avk abp alp agv bfe bik auv aor bdm bcx abz ahi aem bfe abc aog bdx bcd bfn agu aqy ats atm ajy ans bcm aay"
+  }
+]

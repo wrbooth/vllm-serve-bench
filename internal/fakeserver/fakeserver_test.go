@@ -109,7 +109,7 @@ func dataLines(t *testing.T, r io.Reader) []string {
 // value, and a chat adds ChatOverhead.
 func TestServerTokenizeCountsWithTheToyTokenizer(t *testing.T) {
 	t.Parallel()
-	s := &Server{ChatOverhead: 10, MultiToken: map[string]int{"supercalifragilistic": 4}}
+	s := &Server{ChatOverhead: 10, DefaultSystem: "you are fake", MultiToken: map[string]int{"supercalifragilistic": 4}}
 	tests := []struct {
 		name string
 		body string
@@ -122,6 +122,8 @@ func TestServerTokenizeCountsWithTheToyTokenizer(t *testing.T) {
 		{name: "MultiTokenWordsCountTheirValue", body: `{"prompt":"a supercalifragilistic"}`, want: `"count":5`, code: 200},
 		// 10 + 2 ("be" "terse.") + 2 ("Say" "hi.") = 14
 		{name: "ChatAddsOverhead", body: `{"messages":[{"role":"system","content":"be terse."},{"role":"user","content":"Say hi."}]}`, want: `"count":14`, code: 200},
+		// 10 + 3 ("you are fake", the default system prompt) + 2 = 15
+		{name: "ChatWithoutSystemCountsTheDefault", body: `{"messages":[{"role":"user","content":"Say hi."}]}`, want: `"count":15`, code: 200},
 		{name: "NeitherIs400", body: `{"model":"m"}`, code: 400},
 		{name: "BothIs400", body: `{"prompt":"a","messages":[]}`, code: 400},
 		{name: "MalformedIs400", body: `{`, code: 400},
