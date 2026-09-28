@@ -51,10 +51,10 @@ race: ## Run all Go tests with the race detector
 
 # Coverage floor for the packages whose output IS the result: metric math, SSE
 # parsing, prompt generation, the load generator's windowing, the run-directory
-# writer, report aggregation. A wrong percentile there is a wrong slide. cmd/ and deploy glue are exercised by the fake-server
+# writer, report aggregation, the cross-check against vLLM's client. A wrong percentile there is a wrong slide. cmd/ and deploy glue are exercised by the fake-server
 # integration tests instead and are not held to the number.
 COVER_MIN := 85
-COVER_PKGS := ./internal/metrics/... ./internal/openai/... ./internal/prompts/... ./internal/loadgen/... ./internal/results/... ./internal/report/... ./internal/sampler/...
+COVER_PKGS := ./internal/metrics/... ./internal/crosscheck/... ./internal/openai/... ./internal/prompts/... ./internal/loadgen/... ./internal/results/... ./internal/report/... ./internal/sampler/...
 
 cover: ## Coverage on the result-producing packages; fails under COVER_MIN
 	@pkgs=$$(for p in $(COVER_PKGS); do d=$${p%/...}; [ -d "$$d" ] && echo $$p; done); \

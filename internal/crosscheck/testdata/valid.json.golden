@@ -1,0 +1,337 @@
+{
+  "concurrency": 2,
+  "trim_s": 0,
+  "min_uncached_fraction": 0.9,
+  "ours": [
+    {
+      "label": "ours (a)",
+      "n": 4,
+      "failed": 1,
+      "ttft": {
+        "n": 4,
+        "p50_ms": 15,
+        "p95_ms": 25,
+        "p99_ms": 25
+      },
+      "tpot": {
+        "n": 4,
+        "p50_ms": 5,
+        "p95_ms": 19.5,
+        "p99_ms": 19.5
+      },
+      "e2e": {
+        "n": 4,
+        "p50_ms": 25,
+        "p95_ms": 32,
+        "p99_ms": 32
+      },
+      "rps": 1.5,
+      "output_tok_per_s": 3.5,
+      "mean_output_tokens": 4
+    },
+    {
+      "label": "ours (b)",
+      "n": 4,
+      "failed": 1,
+      "ttft": {
+        "n": 4,
+        "p50_ms": 15,
+        "p95_ms": 25,
+        "p99_ms": 25
+      },
+      "tpot": {
+        "n": 4,
+        "p50_ms": 5,
+        "p95_ms": 19.5,
+        "p99_ms": 19.5
+      },
+      "e2e": {
+        "n": 4,
+        "p50_ms": 25,
+        "p95_ms": 32,
+        "p99_ms": 32
+      },
+      "rps": 1.5,
+      "output_tok_per_s": 3.5,
+      "mean_output_tokens": 4
+    }
+  ],
+  "vllm_reported": {
+    "label": "vLLM reported",
+    "n": 3,
+    "failed": 1,
+    "ttft": {
+      "n": 3,
+      "p50_ms": 16,
+      "p95_ms": 30,
+      "p99_ms": 31
+    },
+    "tpot": {
+      "n": 3,
+      "p50_ms": 12,
+      "p95_ms": 19,
+      "p99_ms": 19.5
+    },
+    "e2e": {
+      "n": 3,
+      "p50_ms": 27,
+      "p95_ms": 31,
+      "p99_ms": 31.2
+    },
+    "rps": 1.5,
+    "output_tok_per_s": 3,
+    "mean_output_tokens": 2
+  },
+  "vllm_recomputed": {
+    "label": "vLLM recomputed",
+    "n": 3,
+    "failed": 1,
+    "ttft": {
+      "n": 3,
+      "p50_ms": 15.625,
+      "p95_ms": 31.25,
+      "p99_ms": 31.25
+    },
+    "tpot": {
+      "n": 2,
+      "p50_ms": 4.39453125,
+      "p95_ms": 19.53125,
+      "p99_ms": 19.53125
+    },
+    "e2e": {
+      "n": 3,
+      "p50_ms": 27.34375,
+      "p95_ms": 31.25,
+      "p99_ms": 31.25
+    },
+    "rps": 1.5,
+    "output_tok_per_s": 3,
+    "mean_output_tokens": 2
+  },
+  "rows": [
+    {
+      "metric": "TTFT p50 (ms)",
+      "ours": [
+        15,
+        15
+      ],
+      "vllm_reported": 16,
+      "vllm_recomputed": 15.625,
+      "delta_pct": [
+        -4,
+        -4
+      ]
+    },
+    {
+      "metric": "TTFT p95 (ms)",
+      "ours": [
+        25,
+        25
+      ],
+      "vllm_reported": 30,
+      "vllm_recomputed": 31.25,
+      "delta_pct": [
+        -20,
+        -20
+      ]
+    },
+    {
+      "metric": "TTFT p99 (ms)",
+      "ours": [
+        25,
+        25
+      ],
+      "vllm_reported": 31,
+      "vllm_recomputed": 31.25,
+      "delta_pct": [
+        -20,
+        -20
+      ]
+    },
+    {
+      "metric": "TPOT p50 (ms)",
+      "ours": [
+        5,
+        5
+      ],
+      "vllm_reported": 12,
+      "vllm_recomputed": 4.39453125,
+      "delta_pct": [
+        13.777777777777779,
+        13.777777777777779
+      ]
+    },
+    {
+      "metric": "TPOT p99 (ms)",
+      "ours": [
+        19.5,
+        19.5
+      ],
+      "vllm_reported": 19.5,
+      "vllm_recomputed": 19.53125,
+      "delta_pct": [
+        -0.16,
+        -0.16
+      ]
+    },
+    {
+      "metric": "E2E p50 (ms)",
+      "ours": [
+        25,
+        25
+      ],
+      "vllm_reported": 27,
+      "vllm_recomputed": 27.34375,
+      "delta_pct": [
+        -8.571428571428571,
+        -8.571428571428571
+      ]
+    },
+    {
+      "metric": "E2E p99 (ms)",
+      "ours": [
+        32,
+        32
+      ],
+      "vllm_reported": 31.2,
+      "vllm_recomputed": 31.25,
+      "delta_pct": [
+        2.4,
+        2.4
+      ]
+    },
+    {
+      "metric": "RPS",
+      "ours": [
+        1.5,
+        1.5
+      ],
+      "vllm_reported": 1.5,
+      "vllm_recomputed": 2,
+      "delta_pct": [
+        -25,
+        -25
+      ]
+    },
+    {
+      "metric": "Output tok/s",
+      "ours": [
+        3.5,
+        3.5
+      ],
+      "vllm_reported": 3,
+      "vllm_recomputed": 3,
+      "delta_pct": [
+        16.666666666666664,
+        16.666666666666664
+      ]
+    },
+    {
+      "metric": "Mean output tokens",
+      "ours": [
+        4,
+        4
+      ],
+      "vllm_reported": 2,
+      "vllm_recomputed": 2,
+      "delta_pct": [
+        100,
+        100
+      ]
+    },
+    {
+      "metric": "n",
+      "ours": [
+        4,
+        4
+      ],
+      "vllm_reported": 3,
+      "vllm_recomputed": 3
+    }
+  ],
+  "vllm_mean_check": [
+    {
+      "metric": "TTFT",
+      "reported_ms": 18.229166666666668,
+      "recomputed_ms": 18.229166666666668,
+      "delta_pct": 0
+    },
+    {
+      "metric": "TPOT",
+      "reported_ms": 11.962890625,
+      "recomputed_ms": 11.962890625,
+      "delta_pct": 0
+    },
+    {
+      "metric": "E2E",
+      "reported_ms": 27.5,
+      "recomputed_ms": 27.669270833333332,
+      "delta_pct": 0.6155303030302988
+    }
+  ],
+  "vllm_without_start_burst": {
+    "excluded": 2,
+    "ttft": {
+      "n": 1,
+      "p50_ms": 7.8125,
+      "p95_ms": 7.8125,
+      "p99_ms": 7.8125
+    }
+  },
+  "vllm_steady_state": {
+    "trim_s": 0,
+    "from_s": 0,
+    "to_s": 1.5,
+    "sends": 4,
+    "span_s": 1.5,
+    "rps": 2,
+    "ok": true
+  },
+  "overall_rps_delta_pct": [
+    0,
+    0
+  ],
+  "engine": [
+    {
+      "label": "ours (a)",
+      "span": "measured window",
+      "from_unix_ms": 1790510410000,
+      "to_unix_ms": 1790510470000,
+      "ttft_count": 60,
+      "uncached_prompt_tokens_per_request": 110,
+      "engine_mean_ttft_ms": 31.25,
+      "unique_tokens": 100,
+      "min_uncached_tokens": 90,
+      "ok": true,
+      "cached": false
+    },
+    {
+      "label": "ours (b)",
+      "span": "measured window",
+      "from_unix_ms": 1790510410000,
+      "to_unix_ms": 1790510470000,
+      "ttft_count": 60,
+      "uncached_prompt_tokens_per_request": 110,
+      "engine_mean_ttft_ms": 31.25,
+      "unique_tokens": 100,
+      "min_uncached_tokens": 90,
+      "ok": true,
+      "cached": false
+    },
+    {
+      "label": "vLLM",
+      "span": "whole file",
+      "from_unix_ms": 1790510400000,
+      "to_unix_ms": 1790510461000,
+      "ttft_count": 16,
+      "uncached_prompt_tokens_per_request": 100,
+      "engine_mean_ttft_ms": 31.25,
+      "unique_tokens": 100,
+      "min_uncached_tokens": 90,
+      "ok": true,
+      "cached": false
+    }
+  ],
+  "valid": true,
+  "warnings": []
+}

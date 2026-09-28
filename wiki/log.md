@@ -426,3 +426,42 @@ The harness agrees with `vllm bench serve` to within 0.5% on median and p95
 TTFT and TPOT, and every other difference has a measured cause. The
 comparison figures here were computed from the committed files. A
 `bench verify` command that generates them, per docs/02, is still to do.
+
+## [2026-09-27] work | `bench verify` generates the cross-check
+
+The "Cross-check passes" figures above were computed with one-off scripts.
+`bench verify` now generates them from the committed files
+([internal/crosscheck](../internal/crosscheck/)). Its output sits beside
+each round:
+[comparison.md](../results/verify/20260927-interactive-c8-varied-output/comparison.md)
+for the valid round, and
+[comparison.md](../results/verify/20260927-interactive-c8-varied-output-cache-contaminated/comparison.md)
+for the round before the cache reset. How it computes each figure is in
+[docs/02](../docs/02-architecture.md), "Cross-check". A test reruns the
+command in each file's header and requires the same bytes.
+
+Every figure in "Cross-check passes" came out the same when rounded as the
+entry rounds it: the table, TTFT p99 and its burst-free
+31.8/35.7/37.0 ms, the 6.215 steady-state rate, the 2.4% and 1.6% RPS
+gaps, the 129.21 vs 127.47 mean output, and 113.0 and 106.1 uncached
+tokens per request. Two corrections:
+
+- **"Within 0.5% on median and p95 TTFT and TPOT" is too strong.** Run (b)'s
+  TTFT p95 is 36.74 ms against vLLM's 36.45, +0.77%. Run (a)'s is +0.27%,
+  and the other TTFT p50 and TPOT deltas are within 0.5%.
+- **113.0 for run (a) depends on the window edges.** Taking the deltas
+  between the first and last samples inside the window gives 113.3. The
+  last sample inside caught a prefill whose first token was counted a
+  second later. `bench verify` takes the samples that bracket the window
+  (last at or before its start, first at or after its end), which gives
+  113.0. The sample time is truncated to the millisecond and the window
+  edge is not, so the comparison uses full precision.
+
+The contaminated round is flagged: 1.6 and 1.0 uncached tokens per request
+for ours over the measured window (the "~1.5" in the correction entry was
+over the whole file), and 106.0 for vLLM's. The threshold is 0.9 × the
+prompt's unique part. An uncached prompt prefills at least its unique part
+(ours 113, vLLM's 106, against 100). A cached one prefills about one token.
+The 0.1 margin absorbs the ±1-request error at the sample edges. A flagged
+comparison is still written, marked NOT VALID, and the command exits 1
+unless `--allow-cached`.

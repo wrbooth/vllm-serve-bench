@@ -1,7 +1,8 @@
 // Command bench is the load generator, telemetry sampler and report tool for
 // benchmarking an OpenAI-compatible LLM inference server (vLLM).
 //
-// Subcommands (see docs/02-architecture.md): run, sample, prompts verify, version.
+// Subcommands (see docs/02-architecture.md): run, sample, prompts verify,
+// verify (the cross-check against vLLM's client), version.
 package main
 
 import (
@@ -44,6 +45,8 @@ func dispatch(ctx context.Context, args []string, stdout, stderr io.Writer) int 
 			return 2
 		}
 		return verifyCmd(ctx, args[2:], stdout, stderr)
+	case "verify":
+		return crossCheckCmd(args[1:], stdout, stderr)
 	default:
 		_, _ = fmt.Fprintf(stderr, "bench: unknown subcommand %q\n\n", args[0])
 		usage(stderr)
@@ -52,5 +55,5 @@ func dispatch(ctx context.Context, args []string, stdout, stderr io.Writer) int 
 }
 
 func usage(w io.Writer) {
-	_, _ = fmt.Fprintln(w, "usage: bench <run|sample|prompts verify|version> [flags]")
+	_, _ = fmt.Fprintln(w, "usage: bench <run|sample|prompts verify|verify|version> [flags]")
 }

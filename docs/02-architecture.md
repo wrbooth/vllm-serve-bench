@@ -67,7 +67,7 @@ bench prompts verify --base-url ... [--write internal/prompts]   (word list + pr
 bench sample   --out DIR [--duration]  (1 Hz vllm /metrics + nvidia-smi; `run` starts the same
                samplers itself; standalone for load `run` does not drive, e.g. the cross-check)
 bench report   --runs results/... --out docs/03-results.md   (tables, deltas, SVG charts)
-bench verify   --against vllm-bench.json                      (cross-check numbers, see below)
+bench verify   --vllm DIR RUN_DIR...                          (cross-check comparison, see below)
 ```
 
 ### Load model
@@ -181,7 +181,35 @@ number typed by hand.
 Before the first reported table, one concurrency level of the `interactive` profile is run with
 `vllm bench serve` (vLLM's bundled client, run inside the engine container) using the same prompt
 lengths, and RPS / TTFT / TPOT are compared. The harness has to agree within a few percent or the
-harness is wrong. The comparison is committed as `results/verify/`.
+harness is wrong. `scripts/cross-check.sh` runs ours, then vLLM's client with `bench sample`
+alongside, then ours again, into one `results/verify/<round>/` directory.
+
+`bench verify --vllm <round>/vllm <round>/a/<run> <round>/b/<run>` generates the comparison from
+those files and writes `comparison.md` and `comparison.json` into the round directory (`--out`
+overrides). The Markdown header records the exact command, so the file regenerates itself; the
+code is `internal/crosscheck`.
+
+- **Like with like.** vLLM reports numpy-interpolated percentiles; ours are nearest-rank. Its
+  per-request data (`--save-detailed`) is recomputed with our method: TTFT = `ttfts`, E2E =
+  `ttft + Σ itls`, TPOT = `Σ itls / (output_len − 1)`, with `output_len < 2` excluded as above.
+  The table shows ours, vLLM reported and vLLM recomputed, and the Δ of ours against recomputed.
+  The recomputed means are printed against vLLM's reported ones as a check on the derivation.
+- **Start burst.** vLLM's measured run opens with all `max_concurrency` requests sent at once into
+  an idle engine. Its TTFT is also reported without the first `max_concurrency` requests by send
+  time. Our warmup absorbs the same burst before the window opens.
+- **Steady-state RPS.** Our RPS is over a window that excludes ramp-up. vLLM's
+  `request_throughput` divides by its whole duration. So the RPS row compares against vLLM's send
+  rate over `[first send + trim, last send − trim]` (`--trim`, default 10 s), computed as
+  (n − 1) / (last − first send inside). The overall figure is printed too.
+- **Engine-side check.** From each side's `vllm_metrics.csv`: uncached prompt tokens per request =
+  Δ(`prefix_cache_queries` − `prefix_cache_hits`) / Δ`ttft_count`, and engine mean TTFT =
+  Δ`ttft_sum` / Δ`ttft_count`. For ours the deltas run from the last sample at or before the
+  measured window opens to the first at or after it closes. For vLLM they cover the whole file,
+  since `bench sample` ran only while its client did. An uncached prompt prefills at least its
+  unique part. Prompts served from an earlier run's cache prefill about one token. A side under
+  `--min-uncached-fraction` (0.9) × its unique part (`unique_words` from `config.json`;
+  `--random-input-len` from vLLM's `command.txt`) makes the comparison invalid. It is still
+  written, marked NOT VALID, and `bench verify` exits 1 unless `--allow-cached`.
 
 ## KV-cache arithmetic (why the profiles are sized the way they are)
 
