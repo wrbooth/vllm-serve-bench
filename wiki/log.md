@@ -600,3 +600,67 @@ test regenerates it from the committed runs and fails on any difference.
   cross-check does. docs/03 is the reference; the log entries stay as
   written.
 - **Charts cut** for time ([worklog](../docs/worklog.md)).
+
+## [2026-09-27] decision | Experiment A: hypothesis, recorded before the data
+
+Change: `--max-num-batched-tokens` 2048 → 8192 (`engine/a-mnbt8192.env`), the
+value vLLM itself uses on cards of 70 GB and up. Nothing else changes: same
+`max_num_seqs` 256, seed, per-level cache reset and windows. The levels run
+are the ones around the baseline knees: interactive 32/64/128/256 and
+throughput 32/64/128/192. Committed before the sweep finished.
+
+- **Throughput:** at 2048, each step fits about one ~1,500-token document
+  alongside the running decodes, so documents are admitted slowly and every
+  decode step carries a large prefill chunk. With a 4× budget, I expect the
+  dip from c=64 to c=128 to shrink or vanish, output tok/s to rise from c=64
+  up, and TPOT p95 to rise, because a step that carries more prefill takes
+  longer.
+- **Interactive (the control):** prefills are about 113 tokens, so the budget
+  rarely binds. I expect no material change.
+- **What would refute it:** no throughput gain at c=64 to 128, or worse
+  latency with no throughput to show for it. If the dip at c=128 survives
+  unchanged, the prefill budget is not its cause.
+- **Side effect seen at startup, before any load:** the warm KV pool is
+  227,200 tokens against the baseline's 241,680 (−6%). A larger step budget
+  reserves more activation memory, so less capacity is left at c=192, where
+  the baseline was already KV-bound. It is part of this change's cost.
+
+## [2026-09-27] work | Experiment A result: hypothesis partly supported; SLO-level goodput unchanged
+
+Data: [results/a-mnbt8192/](../results/a-mnbt8192/), compared at matching
+levels against the baseline runs. All levels are valid: 0 errors, 0
+prompt-token mismatches, and 113 or about 1,500 uncached tokens per request.
+These figures were read off the files by hand; `bench report` will generate
+them for docs/03.
+
+- **Supported:** a larger budget admits documents faster.
+  - Throughput TTFT p95 fell 12.6% at c=64 (526 to 460 ms) and 24.5% at
+    c=128 (984 to 743 ms).
+  - Output tok/s rose 4.9% at c=128 and 5.4% at c=192, where admission and
+    queueing matter.
+- **Refuted:**
+  - The dip from c=64 to c=128 survives: 1,594 to 1,482 tok/s (−7%) against
+    the baseline's −11%. The prefill budget is at most part of its cause; the
+    rest is still unexplained. The power cap is the remaining candidate,
+    untested.
+  - TPOT did not rise as predicted; it was flat or 1–8% lower.
+- **Cost, as flagged at startup:** the KV pool is 6% smaller (227,200 tokens).
+  At c=192 that shows as 44 preemptions against 19, and TTFT p95 15% worse
+  (11.6 s against 10.1 s).
+- **Against the SLOs:**
+  - **Interactive:** the boundary is unchanged. c=64 passes and c=128 fails,
+    at TTFT 113 ms and TPOT 26.0 ms, which are near misses again. Compliant
+    goodput is +1.7%.
+  - **Throughput:** c=64 passes (13.3 s) and c=128 fails (26.6 s). Compliant
+    goodput is +0.6%.
+- **Interactive as the control:** every metric moved at most 1.7%, in A's
+  favour. With one run per config that cannot be told apart from run-to-run
+  noise. The baseline's own repeat matched to within 0.7 ms TTFT p50 at
+  1–32, but was not repeated above that.
+
+Trade-off, for the write-up: 8192 buys faster admission of long prompts, with
+lower TTFT at mid-to-high load and about 5% more throughput past the knee. It
+costs 6% of KV capacity, which shows up as more preemption at the top. It
+does not move either SLO boundary. For this card and these SLOs the default
+2048 stays; A is reported as a measured null result on goodput, with a real
+effect on TTFT.
