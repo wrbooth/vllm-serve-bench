@@ -66,7 +66,7 @@ bench run      --profile interactive|throughput --concurrency 1,2,4,8,16 --durat
 bench prompts verify --base-url ... [--write internal/prompts]   (word list + prompt-token check)
 bench sample   --out DIR [--duration]  (1 Hz vllm /metrics + nvidia-smi; `run` starts the same
                samplers itself; standalone for load `run` does not drive, e.g. the cross-check)
-bench report   --runs results/... --out docs/03-results.md   (tables, deltas, SVG charts)
+bench report   --out docs/03-results.md [--slo docs/slo.json] RUN_DIR...   (tables, deltas; see below)
 bench verify   --vllm DIR RUN_DIR...                          (cross-check comparison, see below)
 ```
 
@@ -95,8 +95,24 @@ results; the code has a `--arrival poisson --rate` option stubbed behind a flag 
 | `prompt_tokens`, `completion_tokens` | from the final `usage` chunk (server-authoritative) |
 | **RPS** | completed requests / measured window, warmup excluded |
 | **Output tok/s** | Σ `completion_tokens` / measured window |
-| **Goodput** | output tok/s counting only requests that met the SLO (reported once an SLO exists) |
+| **Goodput** | output tok/s that met the SLO, reported two ways (below). The SLO values live in `docs/slo.json`; the reasoning is in the wiki log. |
 | Percentiles | nearest-rank on the sorted sample; sample sizes reported so a p99 over 40 requests is visibly weak |
+
+**Goodput, precisely.** The SLO is a percentile per concurrency level (interactive: TTFT p95 and
+TPOT p95; throughput: E2E p95; values in `docs/slo.json`). A value equal to the limit passes.
+
+- **Max compliant goodput** (the headline). A level *meets the SLO* when every bound's percentile is
+  at or under its limit and it had no errors (an error row has no latency, so it is not in the
+  percentiles; a level that lost requests does not pass on the ones that survived). The headline is
+  the highest output tok/s among the levels that meet the SLO and pass the engine-side check
+  (below), a tie going to the lower concurrency, reported with that concurrency. This is the
+  headline because the SLO is written as a per-level tail bound: it is the throughput an operator
+  can run at while the whole level's p95 stays in budget, which is what capacity is planned on.
+- **Per-request goodput**, per level: Σ `completion_tokens` of the successful requests whose own
+  TTFT, TPOT and E2E are each at or under the corresponding limit, over the measured window. A
+  request with no TPOT (`completion_tokens < 2`) is judged on its other metrics. It shows how much
+  of a failing level's output was still useful, but it rises with load past the knee in a way the
+  tail does not, so it is reported beside the headline and never instead of it.
 
 Errors and timeouts are counted, never dropped: an HTTP 429/500 or a request that exceeds the
 deadline is a row with `error` set and is reported as a failure rate per concurrency level.
@@ -175,6 +191,30 @@ results/<profile>-<engine-config>-<yyyymmdd-hhmmss>/
 
 Raw directories are committed. The report is regenerated from them; nothing in the write-up is a
 number typed by hand.
+
+### Report
+
+`bench report` (`internal/report`) rewrites `docs/03-results.md` from run directories and
+`docs/slo.json`. Generated text sits between marker lines, `<!-- bench-report:begin ID -->` and
+`<!-- bench-report:end ID -->`; only what is between them is replaced, so the hand-written
+Baseline → Hypothesis → Change → Benchmark → Result → Trade-off prose is never touched, and the
+output is byte-identical for the same inputs. The first line of every block records the command and
+its inputs. A missing document is started from a skeleton with a block for every run. Block ids:
+
+| Id | Content |
+|---|---|
+| `slo` | the SLO table from `docs/slo.json` |
+| `headline:<profile>` | max compliant goodput and its concurrency for every run of the profile, and why the next level up fails, with margins |
+| `table:<run-id>` | per level: requests, errors, RPS, output tok/s, TTFT / TPOT / E2E p50 / p95 / p99; then each SLO bound as pass or fail with its value and margin (`**FAIL** 26.2 ms (+5.0%)`), the engine check, and per-request goodput |
+| `engine:<run-id>` | per level, restricted to the measured window: uncached prompt tokens per request (the cross-check's guard, below), preemptions, running / waiting / KV usage mean and max, mean and max GPU power |
+| `compare:<exp-run-id>:<baseline-run-id>` | the two runs level by level as baseline → experiment (Δ%), levels run on one side only shown with a dash, and the change in max compliant goodput |
+
+Counters (uncached tokens, preemptions) are deltas between the samples covering the window, as in
+the cross-check; gauges are the mean and max of the samples inside it. A level that prefilled fewer
+than 0.9 × its unique part per request is marked `CACHED` and cannot carry the headline. A block
+naming a run that was not passed is an error, so a stale table cannot survive a rerun; a run passed
+with no `table:` block is named on stderr with the marker lines to add. Charts (SVG) were cut for
+time (`docs/worklog.md`).
 
 ### Cross-check
 
@@ -302,7 +342,7 @@ internal/prompts/        seeded generator, profiles, single-token word list, pro
 internal/results/        run directory schema and writer (config.json, requests.jsonl, summary.json)
 internal/metrics/        per-request records, percentiles, summaries
 internal/sampler/        vllm /metrics scraper, nvidia-smi sampler
-internal/report/         markdown tables, SVG charts, deltas
+internal/report/         SLO judgement, goodput, engine-side window stats, deltas, docs/03 blocks
 internal/fakeserver/     OpenAI-compatible fake for tests
 scripts/wordlist/        offline pre-screen for the prompt word list
 deploy/compose/          docker-compose.yml, engine/*.env, prometheus/, grafana/

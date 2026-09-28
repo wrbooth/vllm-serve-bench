@@ -58,4 +58,7 @@ None yet.
 
 ## Cut / deferred
 
-(Filled in as decisions are made.)
+- **`bench report` SVG charts** (output tok/s and p95 latency against
+  concurrency, baseline against experiments): cut for time. The tables and
+  comparisons carry every figure; charts can be drawn from the same
+  `internal/report` tables later without changing any number.

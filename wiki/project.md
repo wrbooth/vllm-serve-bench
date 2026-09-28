@@ -24,14 +24,15 @@ Slides are drafted 2026-09-29.
 | Fake server + integration tests | `done` | `internal/fakeserver` |
 | Cross-check against `vllm bench serve` | `done` (passes; `bench verify` generates the comparison) | `results/verify/`, `scripts/cross-check.sh`, `internal/crosscheck` |
 | Baseline sweeps, both profiles | `done` | `results/baseline/`, `scripts/sweep.sh` |
-| SLO chosen from baseline | `done` (interactive TTFT p95 ≤ 100 ms and TPOT p95 ≤ 25 ms; throughput E2E p95 ≤ 15 s; see [log.md](log.md)); goes into `docs/03` with `bench report` | `docs/03-results.md` |
+| SLO chosen from baseline | `done` (interactive TTFT p95 ≤ 100 ms and TPOT p95 ≤ 25 ms; throughput E2E p95 ≤ 15 s; see [log.md](log.md)); machine-readable in `docs/slo.json` | `docs/slo.json`, `docs/03-results.md` |
+| `bench report`: SLO tables, goodput, engine-side window stats, comparisons, docs/03 marker blocks | `done` (SVG charts cut) | `internal/report`, `cmd/bench/report.go` |
 | Experiment A — batching | `todo` | |
 | Experiment B1 — prefix caching | `todo` | |
 | Experiment B2 — self-made FP8 checkpoint | `todo` | `scripts/quantize/` |
 | Experiment C — FP8 KV cache | `todo` (stretch) | |
 | Dockerfile + GHCR publish in CI | `todo` | |
 | Kubernetes manifests (kubeconform in CI) | `todo` | `deploy/k8s/` |
-| Results write-up + slides | `todo` | `docs/03-results.md`, `docs/slides/` |
+| Results write-up + slides | `in-progress` (docs/03 has the SLO and both baselines; experiments pending; slides `todo`) | `docs/03-results.md`, `docs/slides/` |
 | Proxy in front of vLLM | `deferred` (stretch) | |
 | EKS run as a second hardware point | `deferred` (stretch) | |
 
