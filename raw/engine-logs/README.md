@@ -12,5 +12,7 @@ everything in `raw/`.
 | `2026-09-27-7b-fp8-online.log` | 7B, smoke test | same flags + `--quantization fp8` |
 | `2026-09-27-7b-baseline-no-prefix-cache.log` | 7B, prefix caching off: the B1 config, briefly the baseline | positional model, same flags + `--no-enable-prefix-caching` |
 
+| `2026-09-27-7b-baseline-rerun.log` | 7B, prefix caching on: the baseline config, warm compile cache | positional model, same flags |
+
 The first three were started with `--model`, before the switch to the
 positional model argument.

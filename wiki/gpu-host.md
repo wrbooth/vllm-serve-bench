@@ -51,19 +51,27 @@ The only hardware the reported numbers come from. Checked 2026-09-27.
 Pinned image, 2026-09-27, `--gpu-memory-utilization 0.90 --max-model-len 8192`.
 Startup logs: [raw/engine-logs/](../raw/engine-logs/).
 
-| Config | Weights | KV pool | KV tokens | Ready after |
-|---|---|---|---|---|
-| 0.5B, bf16 (dev) | n/a | 26.13 GiB | 2,283,184 | 132 s (cold compile cache) |
-| 7B bf16, prefix caching on (**the baseline**) | 14.29 GiB | 11.17 GiB | 209,120 | 116 s |
-| 7B bf16, prefix caching off (B1) | 14.29 GiB | 12.91 GiB | 241,680 | 108 s |
-| 7B online FP8 (`--quantization fp8`) | 8.2 GiB | 17.24 GiB | 322,880 | 127 s |
+| Config | Compile cache | Weights | KV pool | KV tokens | Ready after |
+|---|---|---|---|---|---|
+| 0.5B bf16 (dev) | cold | 0.93 GiB | 26.13 GiB | 2,283,184 | 132 s |
+| 7B bf16, caching on | cold | 14.29 GiB | 11.17 GiB | 209,120 | 116 s |
+| 7B bf16, caching off (B1) | warm | 14.29 GiB | 12.91 GiB | 241,680 | 108 s |
+| 7B bf16, caching on (**the baseline**) | warm | 14.29 GiB | 12.91 GiB | 241,680 | 106 s |
+| 7B online FP8 | cold | 8.2 GiB | 17.24 GiB | 322,880 | 127 s |
 
+- **The KV pool depends on whether the compile cache is warm, not on prefix
+  caching.** The same baseline flags gave 209,120 tokens on the first
+  (cold) start and 241,680 on a warm one (1.74 GiB more). Caching off and on
+  both gave 241,680 when warm. The cold starts logged `compilation: 8.30 s`
+  and the warm ones `0.48 s` ("Directly load" of the compiled graph). So far
+  this is a correlation over five starts, not a proven mechanism. Consequence:
+  every reported run starts on a warm cache (one throwaway start after any
+  change to image, model or flags), and `config.json` records the startup
+  log's pool size, so a cold start shows up in the data. The FP8 figure
+  above is a cold start and probably understates its pool.
 - **FP8 runs on sm_120** in this image: vLLM selects
   `CutlassFP8ScaledMMLinearKernel`, and the output is coherent (one
   temperature-0 prompt checked by eye). B2 is not blocked on kernels.
-- **Prefix caching changed the KV pool by 1.74 GiB** with nothing else
-  changed. Cause not investigated. The baseline (caching on) is the one to
-  size against, and B1 reports the difference as part of its trade-off.
 - The first SSE chunk is a role-only delta with empty content, so TTFT has to
   be timed at the first non-empty content.
 - The model's `generation_config.json` overrides vLLM's default sampling

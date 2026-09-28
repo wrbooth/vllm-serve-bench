@@ -107,3 +107,13 @@ config. B1 becomes an ablation of a default ("what is it worth?"). The
 alternative, off → on, reads more naturally but invites "you turned off a
 default to win it back". The KV-pool side effect (209,120 tokens with caching
 on vs 241,680 off) goes into B1's trade-off.
+
+## [2026-09-27] work | Correction: the KV pool moved with compile-cache state, not prefix caching
+
+Two entries above say that turning prefix caching off grew the KV pool by
+1.74 GiB. That was wrong. Rerunning the new baseline (caching on) gave the
+same 241,680 tokens as caching off. The only small pool, 209,120, came from
+the first 7B start, which compiled its graphs cold. Warm starts load the
+compiled graph and get the larger pool. Rule adopted: benchmark runs start
+warm, and `config.json` records the pool size. Details and the per-start
+table are in [gpu-host.md](gpu-host.md#engine-startup-measured).
