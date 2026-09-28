@@ -321,3 +321,30 @@ window is on record. `config.json` gains `engine.facts` and `host`:
 A fact that cannot be read is a warning, never a silent gap. Live on the 5090
 (interactive, c=1 and c=4, not kept): 0 warnings, 42 telemetry rows per file,
 and the facts matched the startup log.
+
+## [2026-09-27] work | Cross-check: the clients agree; TTFT at fixed concurrency is phase-dependent
+
+[scripts/cross-check.sh](../scripts/cross-check.sh) ran ours → `vllm bench
+serve` → ours on the interactive profile at c=8. Raw data:
+[results/verify/20260927-interactive-c8-fixed-output/](../results/verify/20260927-interactive-c8-fixed-output/).
+Input lengths matched (433 vs 429 prompt tokens).
+
+- **Agree within a few percent:** RPS, output tok/s, TPOT p50 and p99, E2E
+  p99, and TTFT p99. For example, TPOT p50 was 9.68 and 9.69 ms (ours) vs
+  9.66 ms (vLLM).
+- **Median TTFT disagrees, including between our own two runs:** 46.4 and
+  28.8 ms (ours) vs 65.8 ms (vLLM). The per-request TTFTs are not spread out.
+  They cluster at the same few values in all three runs (about 29, 46 and
+  66 ms), and each run lands in a different mix of them.
+
+Reading: with a fixed output length and a closed loop, the workers finish in
+lockstep, so arrivals line up with the engine's steps in a few discrete
+patterns. Which pattern a 60 s window settles into decides the median TTFT.
+The drift between our own two runs is as large as the gap to vLLM's client,
+and both clients measure the same clusters. So this is a property of the load
+model, not a harness error. The exact scheduling mechanism behind each
+cluster was not investigated.
+
+Consequence: the harness passes the cross-check on everything except median
+TTFT, and median TTFT is not a stable metric under this load model as it
+stands. A fix is needed before the baseline sweep (owner decision, pending).
