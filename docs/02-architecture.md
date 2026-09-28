@@ -106,13 +106,17 @@ run, and the write-up reports which mode each table used.
 | Profile | Shape | Prompt layout | Concurrency sweep |
 |---|---|---|---|
 | **interactive** | chat-like; latency-sensitive | ~300-token shared system prompt + ~100-token unique user turn → 128 output tokens | 1, 2, 4, 8, 16, 32 |
-| **throughput** | batch summarization / extraction; throughput-sensitive | ~1,500-token unique document + short instruction → 256 output tokens | 8, 16, 32, 64, 128 |
+| **throughput** | batch summarization / extraction; throughput-sensitive | ~1,500-token unique document + short instruction → 256 output tokens | 8, 16, 32, 64, 128, 192, 256 |
 
 The shared prefix in `interactive` is deliberate: it is what production chat traffic looks like
 and it is the workload that prefix caching acts on. The `throughput` profile has no shared prefix
-beyond the instruction line, so it isolates batching and KV-capacity effects, and at 128 × ~1.8k
-tokens it deliberately exceeds the baseline KV pool (see arithmetic below) so preemption is a
-measured phenomenon rather than a theoretical one.
+beyond the instruction line, so it isolates batching and KV-capacity effects. Its sweep runs past
+the baseline KV pool on purpose, so preemption is measured rather than theoretical: 128 × ~1.8k
+tokens roughly fills the pool, and 192 and 256 overflow it. It stops at 256 because that is vLLM's
+default `max_num_seqs` on this card (32 GB falls in the "other hardware" branch of the pinned
+version's defaults, with `max_num_batched_tokens` 2048), so every level up to the top runs
+concurrently rather than queueing behind the scheduler's sequence cap. Both resolved defaults are
+recorded in each run's `config.json`.
 
 ### Telemetry samplers
 

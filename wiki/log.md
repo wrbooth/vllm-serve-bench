@@ -117,3 +117,14 @@ the first 7B start, which compiled its graphs cold. Warm starts load the
 compiled graph and get the larger pool. Rule adopted: benchmark runs start
 warm, and `config.json` records the pool size. Details and the per-start
 table are in [gpu-host.md](gpu-host.md#engine-startup-measured).
+
+## [2026-09-27] decision | Throughput sweep extends to 192 and 256
+
+On a warm start the baseline KV pool (241,680 tokens) holds the old top level
+(128 × ~1.8k), so the design's promise to measure preemption was at risk. The
+options were to extend the sweep, lengthen the documents, shrink the pool
+artificially, or drop the goal. The owner chose to extend it. The sweep stops at 256
+because that is vLLM's default `max_num_seqs` on a 32 GB card; above it, the
+scheduler would queue requests rather than preempt them. The 2048-token
+`max_num_batched_tokens` default is noted for Experiment A. Design:
+[docs/02-architecture.md](../docs/02-architecture.md#workload-profiles).
