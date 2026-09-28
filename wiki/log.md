@@ -497,3 +497,24 @@ telemetry by hand; `bench report` will generate them for docs/03.
   (`max_num_batched_tokens` 2048 against 1,500-token documents) and the power
   cap are the candidates. That is Experiment A's question; it is not
   answered here.
+
+## [2026-09-27] work | Interactive baseline extended to 256; the knee is at 128
+
+Rerun of the interactive profile with its sweep extended to 256
+([results/baseline/interactive-baseline-20260928-015502/](../results/baseline/interactive-baseline-20260928-015502/)).
+It supersedes
+[interactive-baseline-20260928-013307](../results/baseline/interactive-baseline-20260928-013307/),
+which stopped at 32 and stays committed as it is. It had 0 errors, 0 warnings and
+0 of 9,214 prompt-token mismatches, and 113 uncached tokens prefilled per
+request at every level.
+
+- **Repeatability:** levels 1–32 match the first run to the same requests per
+  second, with TTFT p50 within 0.7 ms. Two runs 20 minutes apart on the same
+  engine agree.
+- **The knee is at c=128:** 38.4 req/s. c=256 adds nothing (38.6) while TPOT
+  p50 doubles (25.5 to 51.3 ms) and TTFT p95 goes from 117 to 212 ms.
+- **What limits it is not memory:** KV usage is 21% at c=256, nothing waits,
+  all 256 sequences run (the `max_num_seqs` cap) and there are 0 preemptions.
+  The GPU is at its ~600 W power cap from c=64 up, so decode is compute- or
+  power-bound at this batch size. That is an inference from the power and
+  utilisation telemetry, not a profile.
