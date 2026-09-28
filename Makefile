@@ -50,11 +50,11 @@ race: ## Run all Go tests with the race detector
 	go test -race ./...
 
 # Coverage floor for the packages whose output IS the result: metric math, SSE
-# parsing, prompt generation, report aggregation. A wrong percentile there is a
-# wrong slide. cmd/ and deploy glue are exercised by the fake-server
+# parsing, prompt generation, the load generator's windowing, the run-directory
+# writer, report aggregation. A wrong percentile there is a wrong slide. cmd/ and deploy glue are exercised by the fake-server
 # integration tests instead and are not held to the number.
 COVER_MIN := 85
-COVER_PKGS := ./internal/metrics/... ./internal/openai/... ./internal/prompts/... ./internal/report/...
+COVER_PKGS := ./internal/metrics/... ./internal/openai/... ./internal/prompts/... ./internal/loadgen/... ./internal/results/... ./internal/report/...
 
 cover: ## Coverage on the result-producing packages; fails under COVER_MIN
 	@pkgs=$$(for p in $(COVER_PKGS); do d=$${p%/...}; [ -d "$$d" ] && echo $$p; done); \

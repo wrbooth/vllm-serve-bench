@@ -17,7 +17,9 @@ Slides are drafted 2026-09-29.
 | Problem statement + architecture | `done` | `docs/01`, `docs/02` |
 | Lint, tests standards, CI (lint + test) | `done` | `Makefile`, `.golangci.yml`, `AGENTS.md`, `.github/workflows/ci.yml` |
 | Compose: pinned vLLM + CDI GPU, first streaming request | `done` | `deploy/compose/` |
-| Go bench: client, SSE parser, closed-loop runner | `in-progress` | `cmd/bench`, `internal/` |
+| Go bench: client, SSE parser, closed-loop runner | `done` | `internal/openai`, `internal/loadgen` |
+| Seeded prompts with a predicted token count; `bench prompts verify` | `in-progress` (engine check pending on the GPU host) | `internal/prompts` |
+| `bench run`: sweep, readiness wait, run directory | `done` | `cmd/bench`, `internal/results` |
 | 1 Hz samplers (engine `/metrics`, nvidia-smi) | `todo` | `internal/sampler` |
 | Fake server + integration tests | `done` | `internal/fakeserver` |
 | Cross-check against `vllm bench serve` | `todo` | `results/verify/` |

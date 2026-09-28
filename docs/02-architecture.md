@@ -248,11 +248,13 @@ The GPU-dependent path (a real vLLM smoke run) is intentionally not in CI; it is
 cmd/bench/               main.go, subcommands
 internal/loadgen/        closed-loop runner, worker, request builder
 internal/openai/         streaming client, SSE parser, usage extraction
-internal/prompts/        seeded generator, profiles
+internal/prompts/        seeded generator, profiles, single-token word list, prompt-token check
+internal/results/        run directory schema and writer (config.json, requests.jsonl, summary.json)
 internal/metrics/        per-request records, percentiles, summaries
 internal/sampler/        vllm /metrics scraper, nvidia-smi sampler
 internal/report/         markdown tables, SVG charts, deltas
 internal/fakeserver/     OpenAI-compatible fake for tests
+scripts/wordlist/        offline pre-screen for the prompt word list
 deploy/compose/          docker-compose.yml, engine/*.env, prometheus/, grafana/
 deploy/k8s/              manifests
 results/                 committed raw runs

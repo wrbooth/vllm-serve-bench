@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 )
@@ -74,6 +75,35 @@ type Server struct {
 	inFlight    atomic.Int64
 	maxInFlight atomic.Int64
 	modelsCalls atomic.Int64
+
+	mu       sync.Mutex
+	seen     map[string]bool // chat message sets received, to spot repeats
+	repeated int
+}
+
+// RepeatedPrompts returns how many chat requests carried exactly the same
+// messages as an earlier one. With prefix caching on, a repeat would be
+// served from the engine's cache, so a benchmark must send none.
+func (s *Server) RepeatedPrompts() int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.repeated
+}
+
+func (s *Server) notePrompt(msgs []message) {
+	var b strings.Builder
+	for i := range msgs {
+		b.WriteString(msgs[i].Role + "\x00" + msgs[i].Content + "\x00")
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.seen == nil {
+		s.seen = map[string]bool{}
+	}
+	if s.seen[b.String()] {
+		s.repeated++
+	}
+	s.seen[b.String()] = true
 }
 
 // Requests returns the number of chat requests received so far (every
@@ -133,6 +163,7 @@ func (s *Server) chat(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "bad json: "+err.Error())
 		return
 	}
+	s.notePrompt(req.Messages)
 	switch {
 	case !req.Stream:
 		writeError(w, http.StatusBadRequest, "fakeserver only streams")

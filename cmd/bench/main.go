@@ -34,6 +34,8 @@ func dispatch(ctx context.Context, args []string, stdout, stderr io.Writer) int 
 	case "version":
 		_, _ = fmt.Fprintln(stdout, version)
 		return 0
+	case "run":
+		return runCmd(ctx, args[1:], stdout, stderr)
 	case "prompts":
 		if len(args) < 2 || args[1] != "verify" {
 			_, _ = fmt.Fprintln(stderr, "usage: bench prompts verify [flags]")

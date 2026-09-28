@@ -227,3 +227,46 @@ the engine yet. `bench prompts verify --write internal/prompts` on the GPU
 host does that: it prunes any failing words and re-measures the counts from
 the engine's `/tokenize`, and its `source` field says which kind of count a
 run used.
+
+## [2026-09-27] decision | `bench run` and the run directory
+
+`bench run` ([cmd/bench/run.go](../cmd/bench/run.go)) waits until
+`/v1/models` lists the model, then runs the concurrency levels in order.
+Each level gets its own warmup and measured window, and the results go to
+`results/<profile>-<engine-config>-<yyyymmdd-hhmmss>/`. The schema lives in
+[internal/results](../internal/results/results.go), where `bench report`
+will read it too. That package is new; the design's layout now lists it.
+
+- **The engine's identity is required, not optional.** `--engine-config`,
+  `--engine-argv` (from `deploy/compose/engine.sh argv`) and
+  `--engine-image` are mandatory and recorded verbatim. A run without the
+  engine's actual argv could not be defended. An image that is not pinned
+  by digest is allowed, but it adds a warning.
+- **config.json is written twice.** The first write happens when the
+  directory is created, so an interrupted run still says what it was. The
+  second happens at the end, with `complete`, `finished_at` and the
+  prompt-token check. requests.jsonl and summary.json are updated after
+  every level, so an interrupted sweep keeps its finished levels.
+- **The prompt-token check is a warning, not a failure.** Every successful
+  request's `prompt_tokens` is compared with the generator's prediction.
+  Mismatches are counted by observed value in `prompt_token_check`, listed
+  under `warnings`, and printed. A run with no successful request gets a
+  warning too, because its prediction was never checked.
+- **No run directory unless the engine was ready.** A readiness timeout
+  leaves nothing behind. An existing run directory is never reused (raw
+  results are never overwritten). The run id uses UTC.
+- **Nulls, not zeros.** An error row's latencies are `null` in
+  requests.jsonl, so a reader cannot average a failure in as a
+  zero-latency success. Durations are float milliseconds, exact to the
+  nanosecond.
+- **Room for the samplers.** `engine.facts` (KV pool tokens, resolved
+  scheduler limits, prefix caching) and `host` (GPU name, driver, memory)
+  are optional fields in config.json. They stay empty until the
+  `internal/sampler` branch is wired in.
+- **Per-request timeout defaults to 5 minutes.** A request that takes
+  longer becomes an error row.
+
+The end-to-end test runs `bench run` against the fake server at two levels.
+It checks that the three files parse and agree with each other and with the
+server's request count, and that no prompt was sent twice
+(`TestRunWritesAConsistentRunDirectory`).

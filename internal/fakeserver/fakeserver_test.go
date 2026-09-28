@@ -177,3 +177,16 @@ func TestServerCountPromptReportsTheToyCountInUsage(t *testing.T) {
 		t.Errorf("stream %q does not report prompt_tokens 5", rec.Body.String())
 	}
 }
+
+func TestServerCountsRepeatedPrompts(t *testing.T) {
+	t.Parallel()
+	s := &Server{Tokens: 1}
+	for _, content := range []string{"a", "b", "a", "a"} {
+		body := `{"stream":true,"messages":[{"role":"user","content":"` + content + `"}]}`
+		s.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodPost, "/v1/chat/completions", strings.NewReader(body)))
+	}
+	// "a" was sent three times: the second and third are repeats.
+	if got := s.RepeatedPrompts(); got != 2 {
+		t.Errorf("RepeatedPrompts() = %d, want 2", got)
+	}
+}
