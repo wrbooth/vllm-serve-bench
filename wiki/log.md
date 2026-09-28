@@ -270,3 +270,16 @@ The end-to-end test runs `bench run` against the fake server at two levels.
 It checks that the three files parse and agree with each other and with the
 server's request count, and that no prompt was sent twice
 (`TestRunWritesAConsistentRunDirectory`).
+
+## [2026-09-27] work | Prompt word list verified on the engine; first real bench run
+
+`bench prompts verify` against the pinned 7B engine found all 5,497 words to
+be single tokens. It confirmed the fixed counts (33 interactive, 41
+throughput) with 0 mismatches over 40 sample prompts. `--write` re-measured
+them on the engine; only the provenance lines changed. A
+smoke `bench run` (interactive, c=1 and c=4, 20 s, results not kept) finished
+with 0 errors, 0 of 80 prompt-token mismatches, and the full engine argv and
+image digest in `config.json`. At c=4 the closed-loop workers ran in lockstep
+(fixed output length with `ignore_eos`), so each cycle's prompts arrive
+together and TTFT includes a batched prefill. That is real behaviour of this
+load model, worth remembering when reading the interactive TTFT curve.

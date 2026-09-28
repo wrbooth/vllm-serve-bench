@@ -1,7 +1,6 @@
-# Candidate list: common English words that are one Qwen2.5 token
-# with a leading space, pre-screened offline by
-# scripts/wordlist/candidates.py. Not yet confirmed against the
-# engine; `bench prompts verify --write` replaces this header.
+# Words that are exactly one token with a leading space for Qwen/Qwen2.5-7B-Instruct,
+# confirmed against the engine's /tokenize by `bench prompts verify --write`.
+# Regenerate with that command; do not edit by hand.
 abandoned
 ability
 able
