@@ -392,3 +392,37 @@ prompts (seed 101, never used before), and c=8 for 30 s
 KV pool, RPS, output tok/s and TPOT p50 were identical, and TTFT p50 was
 31.6 vs 31.7 ms. Both prefilled 113 uncached tokens per request, which
 confirms that a fresh cache behaves as designed. Compose sets it by default.
+
+## [2026-09-27] work | Cross-check passes
+
+Rerun with both clients starting from an emptied prefix cache and output
+lengths drawn from 96–160 on both sides
+([results/verify/20260927-interactive-c8-varied-output/](../results/verify/20260927-interactive-c8-varied-output/)).
+Telemetry confirms both were uncached: 113 unique tokens prefilled per
+request for ours and 106 for vLLM's, whose lead text is shorter.
+
+| | ours (a) | ours (b) | vLLM |
+|---|---|---|---|
+| TTFT p50 / p95 | 31.7 / 36.6 ms | 31.7 / 36.7 ms | 31.83 / 36.46 ms |
+| TPOT p50 | 9.78 ms | 9.79 ms | 9.80 ms |
+| E2E p99 | 1,590 ms | 1,588 ms | 1,587 ms |
+| RPS | 6.317 | 6.317 | 6.171 |
+
+Our two runs are the same prompts on the same reset cache, and their
+throughput is identical. The remaining differences are accounted for:
+
+- **TTFT p99** (ours 40.5 and 38.3 ms, vLLM 67.8 ms): vLLM's only high TTFTs
+  are its requests 1–7, the start burst when all 8 workers send at once.
+  Seven of 400 is enough to set its p99. Without those 8 requests vLLM's
+  TTFT is p50/p95/p99 31.8/35.7/37.0 ms. Our warmup absorbs the burst
+  before the window opens.
+- **RPS** (2.4% overall, 1.6% in vLLM's steady-state middle): vLLM's client
+  drew a longer mean output, 129.21 vs our 127.47 tokens (1.4%).
+  TTFT + output × TPOT predicts a 1.6% longer E2E, which is the whole gap.
+  The rest of the 2.4% is vLLM dividing by its full duration, ramp-up and
+  drain included.
+
+The harness agrees with `vllm bench serve` to within 0.5% on median and p95
+TTFT and TPOT, and every other difference has a measured cause. The
+comparison figures here were computed from the committed files. A
+`bench verify` command that generates them, per docs/02, is still to do.
