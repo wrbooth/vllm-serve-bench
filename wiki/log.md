@@ -465,3 +465,35 @@ prompt's unique part. An uncached prompt prefills at least its unique part
 The 0.1 margin absorbs the ±1-request error at the sample edges. A flagged
 comparison is still written, marked NOT VALID, and the command exits 1
 unless `--allow-cached`.
+
+## [2026-09-27] work | Baseline sweep, both profiles
+
+[scripts/sweep.sh](../scripts/sweep.sh) ran both profiles against the warm
+baseline engine: 10 s warmup and 60 s window per level, seed 1, and the
+prefix cache reset before every level. Raw data is in
+[results/baseline/](../results/baseline/). There were 0 errors, 0 warnings
+and 0 prompt-token mismatches over 4,611 measured requests. The telemetry
+shows every level prefilled its intended unique tokens (113 per request for
+interactive, about 1,500 for throughput), so nothing was served from cache.
+
+What the data shows. These figures were read off `summary.json` and the
+telemetry by hand; `bench report` will generate them for docs/03.
+
+- **The interactive profile never saturates within its sweep (1–32).** At
+  c=32 the KV cache is 2.9% used, nothing waits, TTFT p95 is 48 ms and
+  requests per second are still rising almost linearly. The sweep stops
+  short of the knee.
+- **Throughput peaks at c=64** (1,584 output tok/s), **drops at c=128**
+  (1,413) before any preemption (0 events, KV at 85% on average), and holds
+  at about 1,250 at 192–256.
+- **At c≥192 the KV pool is the limit, as designed.** KV usage is 99.9–100%,
+  only about 150 sequences run (below the `max_num_seqs` cap of 256), up to
+  158 wait, and TTFT p50 reaches 8.1 s (c=192) and 20.4 s (c=256). Preemption
+  happened but is small: 19 and 31 events. Queueing, not recomputation,
+  dominates.
+- **The GPU runs at its ~600 W power cap from c=64 up**, at 100% utilisation
+  throughout.
+- **The drop from 64 to 128 is unexplained.** The prefill budget
+  (`max_num_batched_tokens` 2048 against 1,500-token documents) and the power
+  cap are the candidates. That is Experiment A's question; it is not
+  answered here.
