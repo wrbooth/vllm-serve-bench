@@ -16,7 +16,7 @@ Slides are drafted 2026-09-29.
 |---|---|---|
 | Problem statement + architecture | `done` | `docs/01`, `docs/02` |
 | Lint, tests standards, CI (lint + test) | `done` | `Makefile`, `.golangci.yml`, `AGENTS.md`, `.github/workflows/ci.yml` |
-| Compose: pinned vLLM + CDI GPU, first streaming request | `todo` | `deploy/compose/` |
+| Compose: pinned vLLM + CDI GPU, first streaming request | `done` | `deploy/compose/` |
 | Go bench: client, SSE parser, closed-loop runner | `todo` | `cmd/bench`, `internal/` |
 | 1 Hz samplers (engine `/metrics`, nvidia-smi) | `todo` | `internal/sampler` |
 | Fake server + integration tests | `todo` | `internal/fakeserver` |
@@ -56,10 +56,15 @@ second hardware point.
 
 ## Open questions
 
-- Does the pinned vLLM image's FP8 path run on sm_120 (consumer Blackwell)?
-  Answered by the first-hour smoke test; see [gpu-host.md](gpu-host.md).
+- ~~Does the pinned vLLM image's FP8 path run on sm_120?~~ Yes (CUTLASS FP8
+  kernel); see [gpu-host.md](gpu-host.md#engine-startup-measured).
+- The baseline KV pool (241,680 tokens) is larger than the design assumed, so
+  the throughput profile's top level (128 × ~1.8k ≈ 230k tokens) may no
+  longer force preemption. Extend the sweep or lengthen the documents? Owner
+  to decide before the baseline sweep.
 - Does llm-compressor install cleanly next to torch 2.13 / CUDA 13, or does
-  quantization need its own container?
+  quantization need its own container? It will run in the `ubuntu-gpu-v2`
+  distrobox either way ([gpu-host.md](gpu-host.md#access)).
 
 Related: [gpu-host.md](gpu-host.md) · [prior-art-5090.md](prior-art-5090.md) ·
 [walkthrough-topics.md](walkthrough-topics.md)

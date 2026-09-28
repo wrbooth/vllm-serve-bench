@@ -76,3 +76,24 @@ on the same machine, so its transcript is stored under that directory, not
 this repo's. `make timesheet -also` (set as `TIMESHEET_ALSO` in `.env.local`)
 now reads such transcripts and counts only the records that name this repo;
 see [docs/worklog.md](../docs/worklog.md).
+
+## [2026-09-27] work | Engine up under Compose; FP8 runs on sm_120
+
+The pinned engine runs under Compose with the CDI device named directly (the
+`{driver: cdi}` form in the design was the wrong Compose key). It served the
+0.5B and 7B models. Online FP8 works with a CUTLASS kernel, so B2 is not
+blocked. KV figures and SSE quirks are in
+[gpu-host.md](gpu-host.md#engine-startup-measured).
+
+## [2026-09-27] decision | The baseline runs with prefix caching off
+
+The design contradicted itself: "Serving layer" said vLLM defaults (caching
+on), while B1 said the baseline runs with it off. B1 only makes sense as
+off → on, so the baseline has `--no-enable-prefix-caching` and the design
+now says so. Side effect: the KV pool grew by 1.74 GiB, which reopens the
+throughput profile's sizing (open question in [project.md](project.md)).
+
+## [2026-09-27] decision | Host-side Python runs in the GPU distrobox
+
+The host has no Python. At the owner's direction, host tooling (llm-compressor
+for B2) runs in the `ubuntu-gpu-v2` distrobox; the engine stays in Docker.
