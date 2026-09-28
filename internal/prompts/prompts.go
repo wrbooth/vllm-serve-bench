@@ -73,7 +73,9 @@ var profiles = []Profile{
 		MaxTokens:   128,
 		// 96 to 160 tokens.
 		OutputRangeRatio: 0.25,
-		Sweep:            []int{1, 2, 4, 8, 16, 32},
+		// Up to max_num_seqs: the first baseline stopped at 32 with the KV
+		// cache 2.9% used and nothing queued, short of any knee.
+		Sweep: []int{1, 2, 4, 8, 16, 32, 64, 128, 256},
 	},
 	{
 		Name:        "throughput",

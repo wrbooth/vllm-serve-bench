@@ -135,7 +135,7 @@ run, and the write-up reports which mode each table used.
 
 | Profile | Shape | Prompt layout | Concurrency sweep |
 |---|---|---|---|
-| **interactive** | chat-like; latency-sensitive | ~300-token shared system prompt + ~100-token unique user turn → 96–160 output tokens (mean 128) | 1, 2, 4, 8, 16, 32 |
+| **interactive** | chat-like; latency-sensitive | ~300-token shared system prompt + ~100-token unique user turn → 96–160 output tokens (mean 128) | 1, 2, 4, 8, 16, 32, 64, 128, 256 |
 | **throughput** | batch summarization / extraction; throughput-sensitive | short instruction + ~1,500-token unique document → 192–320 output tokens (mean 256) | 8, 16, 32, 64, 128, 192, 256 |
 
 The shared prefix in `interactive` is deliberate: it is what production chat traffic looks like

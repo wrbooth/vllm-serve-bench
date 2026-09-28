@@ -415,4 +415,8 @@ func TestParseLevelsKeepsOrderAndDefaultsToTheProfileSweep(t *testing.T) {
 	if err != nil || !slices.Equal(levels, []int{8, 16, 32, 64, 128, 192, 256}) {
 		t.Errorf("default levels = %v, %v; want the throughput sweep", levels, err)
 	}
+	f.profile = "interactive"
+	if levels, err := f.check(); err != nil || !slices.Equal(levels, []int{1, 2, 4, 8, 16, 32, 64, 128, 256}) {
+		t.Errorf("interactive default levels = %v, %v; want 1..256 (up to max_num_seqs)", levels, err)
+	}
 }

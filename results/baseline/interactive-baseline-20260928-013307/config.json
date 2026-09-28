@@ -1,0 +1,103 @@
+{
+  "schema": 1,
+  "run_id": "interactive-baseline-20260928-013307",
+  "bench_version": "dev",
+  "complete": true,
+  "started_at": "2026-09-27T18:33:07.751226594-07:00",
+  "finished_at": "2026-09-27T18:40:14.578391174-07:00",
+  "args": [
+    "--profile",
+    "interactive",
+    "--warmup",
+    "10s",
+    "--duration",
+    "60s",
+    "--seed",
+    "1",
+    "--base-url",
+    "http://127.0.0.1:8000",
+    "--model",
+    "Qwen/Qwen2.5-7B-Instruct",
+    "--out",
+    "results/baseline",
+    "--engine-config",
+    "baseline",
+    "--engine-argv",
+    "/usr/bin/python3 /usr/local/bin/vllm serve Qwen/Qwen2.5-7B-Instruct --host 0.0.0.0 --port 8000 --gpu-memory-utilization 0.90 --max-model-len 8192 --max-num-seqs 256 --max-num-batched-tokens 2048",
+    "--engine-image",
+    "vllm/vllm-openai:v0.29.0@sha256:c2914767605584b6d8f45686b82de173ecc99e781897aa3d0a66dacd72c51ae1"
+  ],
+  "flags": {
+    "base-url": "http://127.0.0.1:8000",
+    "concurrency": "",
+    "duration": "1m0s",
+    "engine-argv": "/usr/bin/python3 /usr/local/bin/vllm serve Qwen/Qwen2.5-7B-Instruct --host 0.0.0.0 --port 8000 --gpu-memory-utilization 0.90 --max-model-len 8192 --max-num-seqs 256 --max-num-batched-tokens 2048",
+    "engine-config": "baseline",
+    "engine-image": "vllm/vllm-openai:v0.29.0@sha256:c2914767605584b6d8f45686b82de173ecc99e781897aa3d0a66dacd72c51ae1",
+    "gpu-sampler": "true",
+    "model": "Qwen/Qwen2.5-7B-Instruct",
+    "natural-stop": "false",
+    "out": "results/baseline",
+    "profile": "interactive",
+    "ready-timeout": "10m0s",
+    "request-timeout": "5m0s",
+    "reset-prefix-cache": "true",
+    "sample-interval": "1s",
+    "seed": "1",
+    "warmup": "10s"
+  },
+  "base_url": "http://127.0.0.1:8000",
+  "model": "Qwen/Qwen2.5-7B-Instruct",
+  "concurrency": [
+    1,
+    2,
+    4,
+    8,
+    16,
+    32
+  ],
+  "warmup_s": 10,
+  "duration_s": 60,
+  "seed": 1,
+  "profile": {
+    "name": "interactive",
+    "shared_words": 300,
+    "unique_words": 100,
+    "fixed_tokens": 33,
+    "fixed_source": "measured with bench prompts verify --write (bench dev) against the engine's /tokenize on 2026-09-28",
+    "fixed_model": "Qwen/Qwen2.5-7B-Instruct",
+    "predicted_prompt_tokens": 433,
+    "word_list_sha256": "f50ce594a384fcfae959816c40530e5b9b2a4fc14e8a0f3ae7569e7db672880a",
+    "word_list_size": 5497,
+    "max_tokens": 128,
+    "output_range_ratio": 0.25,
+    "output_tokens_min": 96,
+    "output_tokens_max": 160,
+    "ignore_eos": true,
+    "temperature": 0,
+    "repetition_penalty": 1
+  },
+  "engine": {
+    "config": "baseline",
+    "image": "vllm/vllm-openai:v0.29.0@sha256:c2914767605584b6d8f45686b82de173ecc99e781897aa3d0a66dacd72c51ae1",
+    "argv": "/usr/bin/python3 /usr/local/bin/vllm serve Qwen/Qwen2.5-7B-Instruct --host 0.0.0.0 --port 8000 --gpu-memory-utilization 0.90 --max-model-len 8192 --max-num-seqs 256 --max-num-batched-tokens 2048",
+    "facts": {
+      "kv_cache_tokens": 241680,
+      "max_num_seqs": 256,
+      "max_num_batched_tokens": 2048,
+      "prefix_caching": true
+    }
+  },
+  "host": {
+    "gpu_name": "NVIDIA GeForce RTX 5090",
+    "driver": "595.58.03",
+    "gpu_memory_mib": 32607
+  },
+  "ready_wait_s": 0.001101085,
+  "prompt_token_check": {
+    "predicted": 433,
+    "checked": 2650,
+    "mismatches": 0
+  },
+  "warnings": []
+}

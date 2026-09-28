@@ -465,3 +465,107 @@ prompt's unique part. An uncached prompt prefills at least its unique part
 The 0.1 margin absorbs the ±1-request error at the sample edges. A flagged
 comparison is still written, marked NOT VALID, and the command exits 1
 unless `--allow-cached`.
+
+## [2026-09-27] work | Baseline sweep, both profiles
+
+[scripts/sweep.sh](../scripts/sweep.sh) ran both profiles against the warm
+baseline engine: 10 s warmup and 60 s window per level, seed 1, and the
+prefix cache reset before every level. Raw data is in
+[results/baseline/](../results/baseline/). There were 0 errors, 0 warnings
+and 0 prompt-token mismatches over 4,611 measured requests. The telemetry
+shows every level prefilled its intended unique tokens (113 per request for
+interactive, about 1,500 for throughput), so nothing was served from cache.
+
+What the data shows. These figures were read off `summary.json` and the
+telemetry by hand; `bench report` will generate them for docs/03.
+
+- **The interactive profile never saturates within its sweep (1–32).** At
+  c=32 the KV cache is 2.9% used, nothing waits, TTFT p95 is 48 ms and
+  requests per second are still rising almost linearly. The sweep stops
+  short of the knee.
+- **Throughput peaks at c=64** (1,584 output tok/s), **drops at c=128**
+  (1,413) before any preemption (0 events, KV at 85% on average), and holds
+  at about 1,250 at 192–256.
+- **At c≥192 the KV pool is the limit, as designed.** KV usage is 99.9–100%,
+  only about 150 sequences run (below the `max_num_seqs` cap of 256), up to
+  158 wait, and TTFT p50 reaches 8.1 s (c=192) and 20.4 s (c=256). Preemption
+  happened but is small: 19 and 31 events. Queueing, not recomputation,
+  dominates.
+- **The GPU runs at its ~600 W power cap from c=64 up**, at 100% utilisation
+  throughout.
+- **The drop from 64 to 128 is unexplained.** The prefill budget
+  (`max_num_batched_tokens` 2048 against 1,500-token documents) and the power
+  cap are the candidates. That is Experiment A's question; it is not
+  answered here.
+
+## [2026-09-27] work | Interactive baseline extended to 256; the knee is at 128
+
+Rerun of the interactive profile with its sweep extended to 256
+([results/baseline/interactive-baseline-20260928-015502/](../results/baseline/interactive-baseline-20260928-015502/)).
+It supersedes
+[interactive-baseline-20260928-013307](../results/baseline/interactive-baseline-20260928-013307/),
+which stopped at 32 and stays committed as it is. It had 0 errors, 0 warnings and
+0 of 9,214 prompt-token mismatches, and 113 uncached tokens prefilled per
+request at every level.
+
+- **Repeatability:** levels 1–32 match the first run to the same requests per
+  second, with TTFT p50 within 0.7 ms. Two runs 20 minutes apart on the same
+  engine agree.
+- **The knee is at c=128:** 38.4 req/s. c=256 adds nothing (38.6) while TPOT
+  p50 doubles (25.5 to 51.3 ms) and TTFT p95 goes from 117 to 212 ms.
+- **What limits it is not memory:** KV usage is 21% at c=256, nothing waits,
+  all 256 sequences run (the `max_num_seqs` cap) and there are 0 preemptions.
+  The GPU is at its ~600 W power cap from c=64 up, so decode is compute- or
+  power-bound at this batch size. That is an inference from the power and
+  utilisation telemetry, not a profile.
+
+## [2026-09-27] decision | Interactive SLO: TTFT p95 ≤ 100 ms and TPOT p95 ≤ 25 ms
+
+Chosen after the baseline, from
+[interactive-baseline-20260928-015502](../results/baseline/interactive-baseline-20260928-015502/),
+per the contract. A request level meets the SLO when both p95s are within
+bounds; goodput counts output tokens only at levels that do.
+
+- **Where it bites:** the baseline meets it at c=64 (TTFT p95 73 ms, TPOT
+  p95 15.5 ms) and fails at c=128 (117 ms, 26.2 ms) on both metrics. The
+  SLO sits on the knee, so the highest compliant goodput is c=64's, and
+  every experiment has room to move it:
+  - A trades TTFT against TPOT through the scheduler budgets;
+  - B1 adds about 300 prefill tokens per request;
+  - B2 speeds up decode.
+- **Why these numbers:** 25 ms per token is 40 tok/s per stream, well above
+  reading speed. 100 ms to first token reads as instant. Both are user-facing
+  budgets, not fitted to a curve.
+- **Alternatives considered:**
+  - Looser (TTFT 250 ms, TPOT 50 ms): its boundary falls between c=128 and
+    c=256, which have the same throughput, so no experiment could show a
+    goodput gain.
+  - Tail (p99 150 ms, 20 ms): the same knee, but each p99 rests on about 20
+    samples.
+- **Known weakness, to state in the write-up:** c=128's TPOT p95 is 26.2 ms,
+  5% over the bound. A small TPOT improvement brings c=128 inside and
+  roughly adds 19% goodput, which would overstate a small effect. Each
+  experiment reports its per-level p95s next to the pass/fail, so the
+  margin stays visible.
+
+## [2026-09-27] decision | Throughput SLO: E2E p95 ≤ 15 s
+
+Chosen after the baseline, from
+[throughput-baseline-20260928-014014](../results/baseline/throughput-baseline-20260928-014014/).
+A batch summarization user waits for the finished summary, so the SLO is
+completion time. TTFT and TPOT stay in the tables as diagnostics.
+
+- **Where it bites:** the baseline meets it at c=64 (E2E p95 13.0 s) and fails
+  at c=128 (26.2 s). The margins on both sides are wide, unlike the
+  interactive TPOT bound. The compliant peak is also the throughput peak
+  (1,584 tok/s at c=64). B2 (FP8: faster decode, larger KV pool) and A
+  (scheduler budgets) both have room to move c=128 inside.
+- **Alternatives considered:**
+  - TTFT p95 ≤ 1 s with TPOT p95 ≤ 100 ms: c=128 passes by 1.6% on TTFT
+    (984 ms), a knife edge, and the boundary lands on a level with no
+    throughput advantage.
+  - TTFT ≤ 2 s with TPOT ≤ 50 ms: the same boundary as E2E, but it fails on a
+    metric a batch user does not see.
+- **Caveat:** E2E p95 is dominated by the longer outputs in the 192–320 range.
+  The lengths are fixed by seed and request index, so every experiment sees
+  the same ones.
