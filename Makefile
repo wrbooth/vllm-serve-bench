@@ -42,7 +42,10 @@ endef
 
 PY_FILES := $(shell git ls-files '*.py' 2>/dev/null)
 
-.PHONY: build test race cover test-gpu fmt vet lint lint-go lint-actions lint-py lint-md lint-secrets lint-private lint-deploy lint-k8s lint-compose install-tools install-kubeconform tool-versions timesheet clean help
+charts: build ## Regenerate docs/charts/ from the committed runs (scripts/charts.sh)
+	scripts/charts.sh
+
+.PHONY: charts build test race cover test-gpu fmt vet lint lint-go lint-actions lint-py lint-md lint-secrets lint-private lint-deploy lint-k8s lint-compose install-tools install-kubeconform tool-versions timesheet clean help
 
 build: ## Build the bench binary into bin/
 	CGO_ENABLED=0 go build -trimpath -o $(BIN) ./cmd/bench
@@ -58,7 +61,7 @@ race: ## Run all Go tests with the race detector
 # writer, report aggregation, the cross-check against vLLM's client. A wrong percentile there is a wrong slide. cmd/ and deploy glue are exercised by the fake-server
 # integration tests instead and are not held to the number.
 COVER_MIN := 85
-COVER_PKGS := ./internal/metrics/... ./internal/crosscheck/... ./internal/openai/... ./internal/prompts/... ./internal/loadgen/... ./internal/results/... ./internal/report/... ./internal/sampler/...
+COVER_PKGS := ./internal/metrics/... ./internal/crosscheck/... ./internal/openai/... ./internal/prompts/... ./internal/loadgen/... ./internal/results/... ./internal/report/... ./internal/sampler/... ./internal/chart/...
 
 cover: ## Coverage on the result-producing packages; fails under COVER_MIN
 	@pkgs=$$(for p in $(COVER_PKGS); do d=$${p%/...}; [ -d "$$d" ] && echo $$p; done); \

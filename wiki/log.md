@@ -824,3 +824,19 @@ The docs and wiki are brought in line with what exists after the build.
   says publishing to Hugging Face was not done. It was published on
   2026-09-28 (the model's creation time on the Hub, after that entry), as
   the README says.
+
+## [2026-09-29] work | Charts: `bench chart`, after the time box
+
+The charts cut during the build now exist as `bench chart`
+([internal/chart](../internal/chart/), [cmd/bench/chart.go](../cmd/bench/chart.go)),
+drawn from the same `report.Table`s as docs/03, so a chart cannot disagree
+with its table. Six SVGs in `docs/charts/` from
+[scripts/charts.sh](../scripts/charts.sh). Decisions: one y-axis per panel,
+never two; a line breaks across levels a series did not run, so no segment
+implies an unrun level; the baseline is drawn in neutral ink as the
+reference and the experiments take three categorical hues that pass a
+colorblind-safety check on every pair in light and dark; colors are plain
+values, because SVG rasterizers ignore CSS variables and first rendered the
+charts black. The regeneration test caught a stale chart on its first run.
+Worked after the time box: [docs/worklog.md](../docs/worklog.md) records it
+outside the Sessions total.

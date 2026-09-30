@@ -214,8 +214,23 @@ Counters (uncached tokens, preemptions) are deltas between the samples covering 
 the cross-check; gauges are the mean and max of the samples inside it. A level that prefilled fewer
 than 0.9 × its unique part per request is marked `CACHED` and cannot carry the headline. A block
 naming a run that was not passed is an error, so a stale table cannot survive a rerun; a run passed
-with no `table:` block is named on stderr with the marker lines to add. Charts (SVG) were cut for
-time (`docs/worklog.md`).
+with no `table:` block is named on stderr with the marker lines to add.
+
+### Charts
+
+`bench chart --kind latency|engine|headline --out FILE RUN_DIR...` (`internal/chart`, standard
+library only) draws SVG figures from the same `report.Table`s, so a chart cannot disagree with the
+table beside it: SLO judgment, compliance and the engine window come from the same code. `latency`
+stacks output tok/s over one panel per SLO bound, with the limit drawn; `engine` stacks KV use,
+waiting requests and preemptions from the measured windows; `headline` is max compliant goodput per
+engine config and profile, with the change against the reference. The x-axis is concurrency on a
+log₂ scale, each panel has its own y-axis, a filled marker is a compliant level, and a line breaks
+where a series skips a level. `--series config[@slot]=Name` fixes each config's name and color
+across every chart. The command is recorded in each SVG's `<metadata>`, a test regenerates every
+committed chart from it byte for byte, and `scripts/charts.sh` (`make charts`) rebuilds them all.
+Colors are plain values with a `prefers-color-scheme` block, so the files read on light and dark
+pages and in rasterizers that ignore CSS variables. Added after the build time box
+(`docs/worklog.md`).
 
 ### Cross-check
 

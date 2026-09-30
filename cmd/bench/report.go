@@ -54,28 +54,11 @@ func reportCmd(args []string, stdout, stderr io.Writer) int {
 // of a new skeleton) and writes it. It returns the runs with no table
 // block. Nothing is written if any step fails.
 func writeReport(out, sloPath string, minUncached float64, dirs []string, command string) ([]string, error) {
-	slo, err := report.LoadSLO(sloPath)
+	slo, runs, tables, err := loadTables(sloPath, minUncached, dirs)
 	if err != nil {
 		return nil, err
 	}
-	d := report.Doc{Command: command, SLOPath: sloPath, SLO: slo}
-	seen := map[string]string{}
-	for _, dir := range dirs {
-		r, err := report.LoadRun(dir)
-		if err != nil {
-			return nil, err
-		}
-		if prev, dup := seen[r.ID()]; dup {
-			return nil, fmt.Errorf("run %s is given twice (%s and %s)", r.ID(), prev, dir)
-		}
-		seen[r.ID()] = dir
-		t, err := report.NewTable(&r, &slo, minUncached)
-		if err != nil {
-			return nil, err
-		}
-		d.Runs = append(d.Runs, r)
-		d.Tables = append(d.Tables, t)
-	}
+	d := report.Doc{Command: command, SLOPath: sloPath, SLO: slo, Runs: runs, Tables: tables}
 	doc, err := os.ReadFile(out)
 	switch {
 	case errors.Is(err, fs.ErrNotExist):
