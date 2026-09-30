@@ -3,7 +3,7 @@
 //
 // Subcommands (see docs/02-architecture.md): run, sample, prompts verify,
 // verify (the cross-check against vLLM's client), report (docs/03-results.md
-// from run directories), version.
+// from run directories), chart (SVG figures from the same tables), version.
 package main
 
 import (
@@ -50,6 +50,8 @@ func dispatch(ctx context.Context, args []string, stdout, stderr io.Writer) int 
 		return crossCheckCmd(args[1:], stdout, stderr)
 	case "report":
 		return reportCmd(args[1:], stdout, stderr)
+	case "chart":
+		return chartCmd(args[1:], stdout, stderr)
 	default:
 		_, _ = fmt.Fprintf(stderr, "bench: unknown subcommand %q\n\n", args[0])
 		usage(stderr)
@@ -58,5 +60,5 @@ func dispatch(ctx context.Context, args []string, stdout, stderr io.Writer) int 
 }
 
 func usage(w io.Writer) {
-	_, _ = fmt.Fprintln(w, "usage: bench <run|sample|prompts verify|verify|report|version> [flags]")
+	_, _ = fmt.Fprintln(w, "usage: bench <run|sample|prompts verify|verify|report|chart|version> [flags]")
 }
