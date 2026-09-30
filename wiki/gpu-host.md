@@ -43,8 +43,10 @@ The only hardware the reported numbers come from. Checked 2026-09-27.
   that already ran on this card in a venv, with torch 2.13.0+cu130).
 - `Qwen/Qwen2.5-7B-Instruct` (15 GB) and `Qwen/Qwen2.5-0.5B-Instruct` in the
   host's Hugging Face cache, which the Compose file mounts read-only.
-- An HF token is present on the host; whether it has write scope (needed to
-  publish the B2 checkpoint) is unchecked.
+- An HF token is present on the host. The B2 checkpoint was published to
+  Hugging Face on 2026-09-28
+  ([`wrbooth/Qwen2.5-7B-Instruct-FP8-Dynamic`](https://huggingface.co/wrbooth/Qwen2.5-7B-Instruct-FP8-Dynamic)),
+  so the write-scope question is settled.
 
 ## Engine startup, measured
 

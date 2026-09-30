@@ -20,7 +20,7 @@
                  │           ▼                                                              │
                  │    bench report ──► docs/03-results.md tables, charts                    │
                  │                                                                          │
-                 │    optional: prometheus ── scrapes vllm:/metrics ──► grafana (demo only) │
+                 │    optional: prometheus ── scrapes vllm:/metrics ──► grafana (not built) │
                  └──────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -82,7 +82,7 @@ Closed loop is the right shape for "explore concurrency to saturation" because *
 concurrency. Its known weakness is that it self-throttles: a saturated server slows the clients
 down, so it understates queueing tail latency compared to an **open-loop** (Poisson arrivals at a
 fixed rate) generator. Open loop is the natural next step and is called out as such in the
-results; the code has a `--arrival poisson --rate` option stubbed behind a flag if time allows.
+results; it was not built.
 
 ### Metric definitions (client side, per request)
 
@@ -144,8 +144,9 @@ Prompts are unique within a run but not across runs: a second run with the same 
 the first one's prompts. So `bench run` empties the engine's prefix cache before every level
 (`POST /reset_prefix_cache`), and the level's warmup re-caches the shared prefix. Without the
 reset, a warm engine served repeated runs' prompts almost entirely from cache: requests
-prefilled about 1 of their ~100 unique tokens. A `--natural-stop` flag turns `ignore_eos` off for a realism
-run, and the write-up reports which mode each table used.
+prefilled about 1 of their ~100 unique tokens. A `--natural-stop` flag turns `ignore_eos` off,
+and each run's `config.json` records which mode it used. Every reported run used `ignore_eos`;
+no natural-stop run was made.
 
 ### Workload profiles
 
@@ -181,7 +182,7 @@ they line up with request rows.
 ### Run directory
 
 ```text
-results/<profile>-<engine-config>-<yyyymmdd-hhmmss>/
+results/<out>/<profile>-<engine-config>-<yyyymmdd-hhmmss>/   # <out> is --out; one per engine config
   config.json        # profile, concurrency list, seed, engine image digest, engine argv, GPU, driver
   requests.jsonl     # one row per request: concurrency, t_send, ttft_ms, e2e_ms, tpot_ms, tokens, error
   vllm_metrics.csv   # 1 Hz engine counters
@@ -265,9 +266,12 @@ KV bytes/token (bf16) = 2 (K,V) × 28 layers × 4 heads × 128 dim × 2 bytes = 
 | FP8 weights, bf16 KV | 7.6 GB | ~19.5 GB | ~350k |
 | bf16 weights, FP8 KV | 15.2 GB | ~12 GB at 28 KB/token | ~430k |
 
-The oracle is the engine's startup log (`GPU KV cache size: N tokens`, `Maximum concurrency for
-8192 tokens per request: X`), which the harness captures into `config.json`. The table above is
-the prediction; the log is the measurement.
+The oracle is the engine itself. `bench run` records the pool size from `/metrics`
+(`vllm:cache_config_info`, `kv_cache_size_tokens`) into each run's `config.json`, and the startup
+logs (`GPU KV cache size: N tokens`, `Maximum concurrency for 8192 tokens per request: X`) are kept
+in [`raw/engine-logs/`](../raw/engine-logs/). The table above is the prediction; the engine's figure
+is the measurement. For bf16 the engine reported 209,120 tokens on a cold compile cache and 241,680
+on a warm one, against the ~215k predicted ([wiki/gpu-host.md](../wiki/gpu-host.md#engine-startup-measured)).
 
 ## Experiments
 
@@ -277,8 +281,8 @@ Each is one engine restart with one or two flags changed, the same seeds, and th
 |---|---|---|---|
 | A | `--max-num-seqs`, `--max-num-batched-tokens` (batching / scheduler budget) | Larger batches raise output tok/s until the decode step becomes compute-bound or KV runs out; TPOT and p95 rise with batch size. There is an operating point that meets the SLO at the highest goodput. | Both profiles: tok/s vs concurrency curve, p95 E2E, preemptions |
 | B1 | prefix caching on (the V1 default, in the baseline) → off (`--no-enable-prefix-caching`): an ablation of a default | The cache is what lets the engine skip the shared ~300-token prefill, so turning it off raises TTFT by roughly the shared fraction at low concurrency; the gap shrinks at high concurrency where TTFT is queue-dominated. No effect on `throughput`. | `interactive` TTFT; `prefix_cache_hits / queries` in the baseline confirms the mechanism, and stays at zero with caching off |
-| B2 | Serve an **FP8 checkpoint I produce** with llm-compressor (`scripts/quantize/`, recipe committed, weights pushed to `wrbooth/Qwen2.5-7B-Instruct-FP8-Dynamic`). FP8 dynamic first (no calibration data); FP8 static with ~512 calibration samples as a stretch, compared on the same sweep. | Half the weight bytes: lower TPOT at low concurrency (decode is bandwidth-bound) and ~60% more KV capacity, so `throughput` sustains higher concurrency before preemption and the p99 cliff moves right. Quality: I made the weights, so the check is mine: fixed-prompt output diff vs bf16 committed under `results/quality/`; published deltas cited; a real rollout gates on an eval set. | `throughput` plateau height and position; TPOT at c=1; `kv_cache_usage`, preemptions |
-| C (stretch) | `--kv-cache-dtype fp8` | Doubles KV capacity independent of weights; near-free on Blackwell. | Same as B2, KV side only |
+| B2 | Serve an **FP8 checkpoint I produce** with llm-compressor (`scripts/quantize/`, recipe committed, weights pushed to `wrbooth/Qwen2.5-7B-Instruct-FP8-Dynamic`). FP8 dynamic first (no calibration data); FP8 static with ~512 calibration samples as a stretch, compared on the same sweep (not run). | Half the weight bytes: lower TPOT at low concurrency (decode is bandwidth-bound) and ~60% more KV capacity, so `throughput` sustains higher concurrency before preemption and the p99 cliff moves right. Quality: I made the weights, so the check is mine: fixed-prompt output diff vs bf16 committed under `results/quality/`; published deltas cited (not done); a real rollout gates on an eval set. | `throughput` plateau height and position; TPOT at c=1; `kv_cache_usage`, preemptions |
+| C (stretch, not run) | `--kv-cache-dtype fp8` | Doubles KV capacity independent of weights; near-free on Blackwell. | Same as B2, KV side only |
 
 Each experiment is written up as Baseline → Hypothesis → Change → Benchmark → Result → Trade-off,
 and a hypothesis that fails is reported as failed. The order is A, B1, B2, C: the guaranteed
@@ -354,8 +358,10 @@ tool versions are pinned in the Makefile only.
    `ghcr.io/wrbooth/vllm-serve-bench:{sha,latest}` with the repo's `GITHUB_TOKEN`
    (`packages: write`, granted to this job only).
 
-The GPU-dependent path (a real vLLM smoke run) is intentionally not in CI; it is the
-`make test-gpu` target run on the GPU host, and its output is committed under `results/smoke/`.
+The GPU-dependent path is intentionally not in CI. `make test-gpu` runs tests tagged `gpu`
+against a live engine on the GPU host, but no such tests have been written and nothing is
+committed under `results/smoke/`; the real-engine evidence is the cross-check and the reported
+runs themselves.
 
 ## Testing
 
@@ -389,7 +395,8 @@ Dockerfile  .dockerignore  Makefile  .github/workflows/ci.yml
 ## Scale-out design (presentation material, not built)
 
 - **Bigger model, one node:** tensor parallelism inside the NVLink domain only. A 70B in bf16
-  needs ~140 GB of weights, so 2× H100 80 GB at TP=2 or 4× at TP=4; the all-reduce per layer is
+  needs ~140 GB of weights. TP=2 on H100 80 GB holds them but leaves almost no room for KV cache,
+  so TP=4, or FP8 weights at TP=2 (as in B2); the all-reduce per layer is
   what makes PCIe-only TP a bad idea (an 8-GPU PCIe box is not one NVLink domain). Check
   `nvidia-smi topo -m` before choosing TP degree; TP across a PCIe bridge shows up as low
   `all_reduce_perf` bus bandwidth in `nccl-tests`.
@@ -410,7 +417,8 @@ Dockerfile  .dockerignore  Makefile  .github/workflows/ci.yml
 
 - Closed-loop load understates tail latency under saturation (see above).
 - `ignore_eos` holds each request's output length at its drawn value. The ±25% spread breaks
-  lockstep but is narrower than natural output variability, which the realism run addresses.
+  lockstep but is narrower than natural output variability. A natural-stop run would measure that
+  and was not made.
 - One consumer GPU: no NVLink, no DCGM profiling counters, no TP. Reported numbers are for this
   card; the method transfers, the numbers do not.
 - Quality is spot-checked, not evaluated.
