@@ -802,3 +802,25 @@ below were read off the generated tables.
   host, `bench version` printed the merge SHA, and `bench sample` inside the
   distroless container read `nvidia-smi` through CDI (clean `gpu.csv` rows).
   That closes the item PR #13 left unverified.
+
+## [2026-09-29] lint | Stale references fixed
+
+The docs and wiki are brought in line with what exists after the build.
+
+- [docs/01](../docs/01-problem-statement.md): the production objective now
+  states the chosen SLOs (TPOT and p95, not the planned end-to-end and p99)
+  and points to `docs/slo.json` and the SLO entries above; the GPU sampler is
+  GPU 0 only; no multi-GPU or EKS run; no published accuracy deltas cited;
+  slides are not committed; time is measured by `make timesheet`.
+- [docs/02](../docs/02-architecture.md): open loop, the natural-stop run,
+  `gpu`-tagged tests and `results/smoke/`, Prometheus/Grafana, FP8 static
+  and experiment C are marked not built or not run; the KV pool is recorded
+  from `/metrics`, with the measured pool beside the prediction; the run
+  directory layout matches `results/`; the 70B TP=2 sizing is corrected
+  (weights fit, KV does not).
+- [project.md](project.md), [walkthrough-topics.md](walkthrough-topics.md),
+  [gpu-host.md](gpu-host.md): statuses current.
+- **Contradiction noted, not rewritten:** the entry "Experiment B2 result"
+  says publishing to Hugging Face was not done. It was published on
+  2026-09-28 (the model's creation time on the Hub, after that entry), as
+  the README says.
