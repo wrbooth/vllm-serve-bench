@@ -44,6 +44,16 @@ Max compliant goodput is the highest output tok/s among the levels that meet the
 
 <!-- bench-report:end headline:throughput -->
 
+![Max compliant goodput by engine config, both profiles](docs/charts/headline.svg)
+
+![Interactive profile: output tok/s, TTFT p95 and TPOT p95 against concurrency, baseline and experiments](docs/charts/interactive-experiments.svg)
+
+![Throughput profile: output tok/s and E2E p95 against concurrency, baseline and experiments](docs/charts/throughput-experiments.svg)
+
+The charts are generated too: `bench chart` draws them from the same run directories and SLO file as
+the tables (`scripts/charts.sh`), and each SVG records the command that made it. Filled markers are
+levels that meet the SLO; hollow ones miss it. More in [docs/charts/](docs/charts/).
+
 What each experiment showed:
 
 - **A: a larger scheduler token budget** (`--max-num-batched-tokens` 2048 → 8192). Long prompts

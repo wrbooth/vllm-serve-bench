@@ -25,7 +25,7 @@ drafted 2026-09-29.
 | Cross-check against `vllm bench serve` | `done` (passes; `bench verify` generates the comparison) | `results/verify/`, `scripts/cross-check.sh`, `internal/crosscheck` |
 | Baseline sweeps, both profiles | `done` | `results/baseline/`, `scripts/sweep.sh` |
 | SLO chosen from baseline | `done` (interactive TTFT p95 ≤ 100 ms and TPOT p95 ≤ 25 ms; throughput E2E p95 ≤ 15 s; see [log.md](log.md)); machine-readable in `docs/slo.json` | `docs/slo.json`, `docs/03-results.md` |
-| `bench report`: SLO tables, goodput, engine-side window stats, comparisons, docs/03 marker blocks | `done` (SVG charts cut) | `internal/report`, `cmd/bench/report.go` |
+| `bench report`: SLO tables, goodput, engine-side window stats, comparisons, docs/03 marker blocks | `done` (SVG charts added after the time box as `bench chart`, 2026-09-29) | `internal/report`, `cmd/bench/report.go` |
 | Experiment A — batching | `done` (null on goodput; faster long-prompt admission) | `results/a-mnbt8192/`, `docs/03` |
 | Experiment B1 — prefix caching off | `done` (large goodput loss on the shared-prefix profile; gap grows with load) | `results/b1-no-prefix-cache/`, `docs/03` |
 | Experiment B2 — self-made FP8 checkpoint | `done` (large goodput gain; quality check level with bf16; published to Hugging Face as [`wrbooth/Qwen2.5-7B-Instruct-FP8-Dynamic`](https://huggingface.co/wrbooth/Qwen2.5-7B-Instruct-FP8-Dynamic) on 2026-09-28) | `scripts/quantize/`, `results/b2-fp8/`, `results/quality/`, `docs/03` |

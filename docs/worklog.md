@@ -71,8 +71,8 @@ None yet.
 
 - **`bench report` SVG charts** (output tok/s and p95 latency against
   concurrency, baseline against experiments): cut for time. The tables and
-  comparisons carry every figure; charts can be drawn from the same
-  `internal/report` tables later without changing any number.
+  comparisons carry every figure. Built afterwards as `bench chart`; see
+  "After the time box" below.
 - **Compose `observability` profile (Prometheus + Grafana)**: cut for time. It
   was planned as live-demo material only. The run directories already hold the
   same engine counters (`vllm_metrics.csv`) at 1 Hz, and docs/02 now says it was
@@ -83,3 +83,12 @@ None yet.
 - **Experiments B1 and B2 on a subset of levels**: run only around each
   baseline knee (plus interactive c=1 for B2), not the full sweeps, to save
   GPU time. The comparison tables show which levels were run on only one side.
+
+## After the time box
+
+Work done after the build, for the walkthrough. It is not counted in the
+Sessions table above, and it changes no result.
+
+- **2026-09-29: `bench chart` and `docs/charts/`.** The charts cut above,
+  drawn from the same `internal/report` tables as docs/03, with a test that
+  regenerates every committed SVG from the command it records.
